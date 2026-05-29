@@ -1,51 +1,19 @@
 import { useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import Toast from 'react-native-toast-message';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 
-const CHANNEL_ID = 'orders';
-
-/** Tạo notification channel một lần (Android 8+) */
-async function ensureChannel() {
-  await notifee.createChannel({
-    id: CHANNEL_ID,
-    name: 'Đơn hàng',
-    importance: AndroidImportance.HIGH,
-    sound: 'default',
-  });
-}
-
-/** Hiện system notification thật (dùng cho cả foreground) */
-export async function displayNotification(title: string, body: string) {
-  await ensureChannel();
-  await notifee.displayNotification({
-    title,
-    body,
-    android: {
-      channelId: CHANNEL_ID,
-      importance: AndroidImportance.HIGH,
-      pressAction: { id: 'default' },
-    },
-  });
-}
-
 /**
  * Đăng ký FCM token với backend sau khi đăng nhập.
- * Dùng notifee để hiện notification thật kể cả khi app đang mở.
+ * - App đang mở (foreground): hiện Toast
+ * - App đóng / background: FCM tự show system notification
  */
 export function useFCM() {
   const { user } = useAuth();
 
-  // Tạo channel ngay khi hook mount
-  useEffect(() => {
-    ensureChannel().catch(() => {});
-  }, []);
-
-  // Đăng ký / refresh token khi user đăng nhập
   useEffect(() => {
     if (!user) return;
-
     let cancelled = false;
 
     async function register() {
@@ -77,14 +45,13 @@ export function useFCM() {
     };
   }, [user?.id]);
 
-  // Foreground: dùng notifee hiện notification thật
+  // Foreground: hiện Toast
   useEffect(() => {
-    const unsubForeground = messaging().onMessage(async (msg) => {
+    const unsub = messaging().onMessage(async (msg) => {
       const title = msg.notification?.title ?? 'Thông báo';
       const body = msg.notification?.body ?? '';
-      await displayNotification(title, body);
+      Toast.show({ type: 'info', text1: title, text2: body, visibilityTime: 4000 });
     });
-
-    return unsubForeground;
+    return unsub;
   }, []);
 }
