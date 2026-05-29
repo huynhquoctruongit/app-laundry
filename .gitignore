@@ -1,0 +1,38 @@
+# OSX
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/keystores/debug.keystore
+android/.idea/
+*.iml
+*.apk
+*.aab
+
+# iOS (not used for Sunmi)
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Metro
+.metro-health-check*
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
