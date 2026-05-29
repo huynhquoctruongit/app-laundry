@@ -19,5 +19,7 @@ export function usePermissions() {
     canDelete: isAdmin,
     canCancel: isAdmin,
     canChangeStatus: isAdmin,
+    // Nhân viên được phép bấm "Hoàn thành" (READY → DELIVERED)
+    canCompleteOrder: true,
   };
 }

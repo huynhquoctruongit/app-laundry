@@ -24,7 +24,7 @@ export function OrderDetailScreen() {
   const route = useRoute<R>();
   const { id, autoPrint } = route.params;
   const queryClient = useQueryClient();
-  const { canChangeStatus } = usePermissions();
+  const { canChangeStatus, canCompleteOrder } = usePermissions();
   const [previewOpen, setPreviewOpen] = useState(false);
   const autoPrintTriggered = useRef(false);
 
@@ -154,7 +154,20 @@ export function OrderDetailScreen() {
         settings={settingsQuery.data ?? null}
       />
 
-      {/* Status update */}
+      {/* Nút hoàn thành cho nhân viên (READY → DELIVERED) */}
+      {!canChangeStatus && canCompleteOrder && order.status === 'READY' && (
+        <Button
+          size="lg"
+          fullWidth
+          onPress={() => statusMutation.mutate('DELIVERED')}
+          loading={statusMutation.isPending}
+          leftIcon={<Icon name="check-circle-outline" size={22} color="#fff" />}
+        >
+          Hoàn thành — Đã giao cho khách
+        </Button>
+      )}
+
+      {/* Status update (Admin) */}
       {canChangeStatus && nextStatuses.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Cập nhật trạng thái</CardTitle></CardHeader>

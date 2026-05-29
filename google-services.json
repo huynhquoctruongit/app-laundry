@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "660925630978",
+    "project_id": "laundry-notification-e7e77",
+    "storage_bucket": "laundry-notification-e7e77.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:660925630978:android:2e2ae3fb946377068bf51b",
+        "android_client_info": {
+          "package_name": "vn.laundry.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJt8C7gxG_2nxSTohmruawRLOkSseVeZE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

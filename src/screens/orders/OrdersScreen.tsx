@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,8 @@ import { ORDER_STATUS_LABEL, OrderStatus } from '@/helpers/enums/order-status';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
+
+const PAGE_SIZE = 20;
 
 const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -32,18 +34,46 @@ export function OrdersScreen() {
   const { isPhone } = useResponsive();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
-  const [page, setPage] = useState(1);
 
-  const ordersQuery = useQuery({
-    queryKey: ['orders', { search, status, page }],
-    queryFn: () =>
+  // Lightweight query just for the badge counts
+  const countsQuery = useQuery({
+    queryKey: ['orders', 'status-counts'],
+    queryFn: () => orderApi.statusCounts(),
+    staleTime: 30_000,
+  });
+
+  const counts = countsQuery.data ?? {};
+  const totalAll = Object.values(counts).reduce((s, n) => s + n, 0);
+
+  // Infinite-scroll query for the list
+  const ordersQuery = useInfiniteQuery({
+    queryKey: ['orders', { search, status }],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
       orderApi.list({
         search: search || undefined,
         status: status === 'ALL' ? undefined : status,
-        page,
-        pageSize: 20,
+        page: pageParam as number,
+        pageSize: PAGE_SIZE,
       }),
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.items.length, 0);
+      return loaded < lastPage.total ? allPages.length + 1 : undefined;
+    },
   });
+
+  const items = ordersQuery.data?.pages.flatMap((p) => p.items) ?? [];
+
+  const handleRefresh = () => {
+    ordersQuery.refetch();
+    countsQuery.refetch();
+  };
+
+  const handleEndReached = () => {
+    if (ordersQuery.hasNextPage && !ordersQuery.isFetchingNextPage) {
+      ordersQuery.fetchNextPage();
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -62,7 +92,7 @@ export function OrdersScreen() {
             <Input
               placeholder="Tìm mã đơn, tên KH, SĐT..."
               value={search}
-              onChangeText={(v) => { setSearch(v); setPage(1); }}
+              onChangeText={(v) => setSearch(v)}
               leftIcon={<Icon name="magnify" size={20} color={colors.textMuted} />}
             />
           </View>
@@ -80,24 +110,39 @@ export function OrdersScreen() {
 
       {/* Status filter chips */}
       <View style={styles.chipRow}>
-        {STATUS_FILTERS.map((f) => (
-          <Pressable
-            key={f.value}
-            onPress={() => { setStatus(f.value); setPage(1); }}
-            style={[styles.chip, status === f.value && styles.chipActive]}
-          >
-            <Text style={[styles.chipText, status === f.value && styles.chipTextActive]}>{f.label}</Text>
-          </Pressable>
-        ))}
+        {STATUS_FILTERS.map((f) => {
+          const count = f.value === 'ALL' ? totalAll : (counts[f.value] ?? 0);
+          const isActive = status === f.value;
+          return (
+            <Pressable
+              key={f.value}
+              onPress={() => setStatus(f.value)}
+              style={[styles.chip, isActive && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                {f.label}
+              </Text>
+              {count > 0 && (
+                <View style={[styles.badge, isActive && styles.badgeActive]}>
+                  <Text style={[styles.badgeText, isActive && styles.badgeTextActive]}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* List */}
       <FlatList
-        data={ordersQuery.data?.items ?? []}
+        data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: isPhone ? spacing.md : spacing.lg, gap: spacing.sm }}
-        refreshing={ordersQuery.isFetching}
-        onRefresh={() => ordersQuery.refetch()}
+        refreshing={ordersQuery.isRefetching && !ordersQuery.isFetchingNextPage}
+        onRefresh={handleRefresh}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.3}
         renderItem={({ item }) => (
           <Pressable onPress={() => navigation.navigate('OrderDetail', { id: item.id })}>
             <Card>
@@ -122,32 +167,16 @@ export function OrdersScreen() {
         ListEmptyComponent={
           !ordersQuery.isLoading ? <EmptyState title="Không có đơn nào" /> : null
         }
+        ListFooterComponent={
+          ordersQuery.isFetchingNextPage ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primary}
+              style={{ paddingVertical: spacing.lg }}
+            />
+          ) : null
+        }
       />
-
-      {/* Pagination */}
-      {(ordersQuery.data?.total ?? 0) > 20 && (
-        <View style={styles.pagination}>
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            Trước
-          </Button>
-          <Text style={{ color: colors.textMuted }}>
-            Trang {page} / {Math.ceil((ordersQuery.data?.total ?? 0) / 20)}
-          </Text>
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={() => setPage((p) => p + 1)}
-            disabled={page * 20 >= (ordersQuery.data?.total ?? 0)}
-          >
-            Sau
-          </Button>
-        </View>
-      )}
     </View>
   );
 }
@@ -164,15 +193,18 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: spacing.md, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
   chipTextActive: { color: '#fff', fontWeight: '700' },
+  badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  badgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  badgeText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
+  badgeTextActive: { color: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, padding: spacing.lg },
   rowPhone: { flexDirection: 'column', alignItems: 'stretch', padding: spacing.md },
   code: { fontSize: 16, fontWeight: '700', color: colors.text },
   customer: { fontSize: 14, color: colors.text },
   meta: { fontSize: 12, color: colors.textMuted },
   amount: { fontSize: 16, fontWeight: '700', color: colors.primary },
-  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.lg, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
 });
