@@ -255,8 +255,12 @@ export function BookingDetailScreen() {
                         <Input
                           label="SL"
                           value={it.quantity}
-                          onChangeText={(v) => updateConvertItem(i, { quantity: v })}
-                          keyboardType="numeric"
+                          onChangeText={(v) => updateConvertItem(i, { quantity: v.replace(/[^0-9]/g, '') })}
+                          onBlur={() => {
+                            const q = parseInt(it.quantity, 10);
+                            if (!q || q < 1) updateConvertItem(i, { quantity: '1' });
+                          }}
+                          keyboardType="number-pad"
                         />
                       </View>
                       <View style={{ flex: 1 }}>
