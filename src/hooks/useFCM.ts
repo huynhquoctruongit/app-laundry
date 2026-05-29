@@ -1,15 +1,46 @@
 import { useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
-import Toast from 'react-native-toast-message';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/api/auth.api';
 
+const CHANNEL_ID = 'orders';
+
+/** Tạo notification channel một lần (Android 8+) */
+async function ensureChannel() {
+  await notifee.createChannel({
+    id: CHANNEL_ID,
+    name: 'Đơn hàng',
+    importance: AndroidImportance.HIGH,
+    sound: 'default',
+  });
+}
+
+/** Hiện system notification thật (dùng cho cả foreground) */
+export async function displayNotification(title: string, body: string) {
+  await ensureChannel();
+  await notifee.displayNotification({
+    title,
+    body,
+    android: {
+      channelId: CHANNEL_ID,
+      importance: AndroidImportance.HIGH,
+      pressAction: { id: 'default' },
+    },
+  });
+}
+
 /**
  * Đăng ký FCM token với backend sau khi đăng nhập.
- * Hiển thị Toast khi app đang mở và nhận notification.
+ * Dùng notifee để hiện notification thật kể cả khi app đang mở.
  */
 export function useFCM() {
   const { user } = useAuth();
+
+  // Tạo channel ngay khi hook mount
+  useEffect(() => {
+    ensureChannel().catch(() => {});
+  }, []);
 
   // Đăng ký / refresh token khi user đăng nhập
   useEffect(() => {
@@ -19,31 +50,23 @@ export function useFCM() {
 
     async function register() {
       try {
-        // Xin quyền (Android 13+ và iOS đều cần)
         const status = await messaging().requestPermission();
         const granted =
           status === messaging.AuthorizationStatus.AUTHORIZED ||
           status === messaging.AuthorizationStatus.PROVISIONAL;
-
-        if (!granted) {
-          Toast.show({ type: 'error', text1: '[FCM] Chưa được cấp quyền thông báo', visibilityTime: 4000 });
-          return;
-        }
+        if (!granted) return;
 
         const token = await messaging().getToken();
         if (token && !cancelled) {
           await authApi.updateFcmToken(token);
-          Toast.show({ type: 'success', text1: '🔔 Đăng ký thông báo thành công', visibilityTime: 3000 });
         }
-      } catch (err: any) {
-        Toast.show({ type: 'error', text1: '[FCM] Lỗi đăng ký', text2: err?.message ?? String(err), visibilityTime: 5000 });
+      } catch (err) {
         console.warn('[FCM] register error:', err);
       }
     }
 
     register();
 
-    // Token refresh (ví dụ: reset app / xoá data)
     const unsubRefresh = messaging().onTokenRefresh((token) => {
       authApi.updateFcmToken(token).catch(() => {});
     });
@@ -54,12 +77,12 @@ export function useFCM() {
     };
   }, [user?.id]);
 
-  // Notification khi app đang mở (foreground)
+  // Foreground: dùng notifee hiện notification thật
   useEffect(() => {
     const unsubForeground = messaging().onMessage(async (msg) => {
       const title = msg.notification?.title ?? 'Thông báo';
       const body = msg.notification?.body ?? '';
-      Toast.show({ type: 'info', text1: title, text2: body, visibilityTime: 4000 });
+      await displayNotification(title, body);
     });
 
     return unsubForeground;
