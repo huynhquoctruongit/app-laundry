@@ -24,14 +24,19 @@ export function useFCM() {
         const granted =
           status === messaging.AuthorizationStatus.AUTHORIZED ||
           status === messaging.AuthorizationStatus.PROVISIONAL;
-        if (!granted) return;
+
+        if (!granted) {
+          Toast.show({ type: 'error', text1: '[FCM] Chưa được cấp quyền thông báo', visibilityTime: 4000 });
+          return;
+        }
 
         const token = await messaging().getToken();
         if (token && !cancelled) {
           await authApi.updateFcmToken(token);
+          Toast.show({ type: 'success', text1: '🔔 Đăng ký thông báo thành công', visibilityTime: 3000 });
         }
-      } catch (err) {
-        // Không throw — FCM không ảnh hưởng tới app flow
+      } catch (err: any) {
+        Toast.show({ type: 'error', text1: '[FCM] Lỗi đăng ký', text2: err?.message ?? String(err), visibilityTime: 5000 });
         console.warn('[FCM] register error:', err);
       }
     }
