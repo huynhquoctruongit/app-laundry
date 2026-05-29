@@ -140,7 +140,7 @@ export function OrderCreateScreen() {
     setItems((arr) =>
       arr.map((it, idx) => {
         if (idx !== i) return it;
-        const next = Math.max(1, Number(it.quantity || 0) + delta);
+        const next = Math.max(1, Number(it.quantity || 1) + delta);
         const product = productsQuery.data?.items.find((p) => p.id === it.productId);
         const newPrice = product?.wholesaleEnabled
           ? String(getEffectivePrice(product, next))
@@ -154,14 +154,27 @@ export function OrderCreateScreen() {
     setItems((arr) => arr.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
 
+  /** Cho phép xoá tự do khi đang nhập — KHÔNG force min=1 ở đây */
   function onQuantityInput(i: number, value: string) {
-    const qty = Number(value) || 1;
+    // Chỉ giữ ký tự số nguyên dương
+    const cleaned = value.replace(/[^0-9]/g, '');
     const it = items[i];
+    // Tính giá theo qty hiện tại (nếu rỗng → dùng 1 để tính giá)
+    const qty = Math.max(1, parseInt(cleaned, 10) || 1);
     const product = productsQuery.data?.items.find((p) => p.id === it?.productId);
     const newPrice = product?.wholesaleEnabled
       ? String(getEffectivePrice(product, qty))
       : it?.unitPrice;
-    updateItem(i, { quantity: value, unitPrice: newPrice });
+    // Lưu cleaned (có thể là "") để input không bị snap back
+    updateItem(i, { quantity: cleaned, unitPrice: newPrice });
+  }
+
+  /** Khi rời ô số lượng: nếu trống hoặc = 0 → reset về "1" */
+  function onQuantityBlur(i: number) {
+    const q = parseInt(items[i]?.quantity ?? '', 10);
+    if (!q || q < 1) {
+      updateItem(i, { quantity: '1' });
+    }
   }
 
   function pickProduct(i: number, p: Product) {
@@ -350,8 +363,8 @@ export function OrderCreateScreen() {
                       <Input
                         value={it.quantity}
                         onChangeText={(v) => onQuantityInput(i, v)}
-                        keyboardType="numeric"
-                        selectTextOnFocus
+                        onBlur={() => onQuantityBlur(i)}
+                        keyboardType="number-pad"
                         style={styles.stepInputText}
                       />
                     </View>
