@@ -24,4 +24,6 @@ export const authApi = {
   me: () => unwrap<User>(apiClient.get('/auth/me')),
   register: (payload: RegisterPayload) =>
     unwrap<LoginResponse>(apiClient.post('/auth/register', payload)),
+  updateFcmToken: (token: string) =>
+    apiClient.patch('/auth/fcm-token', { token }),
 };

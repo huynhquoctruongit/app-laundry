@@ -16,6 +16,7 @@ import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AuthProvider } from '@/hooks/useAuth';
 import { RootNavigator } from '@/navigation/RootNavigator';
+import { useFCM } from '@/hooks/useFCM';
 import { navigationRef } from '@/navigation/navigationRef';
 import { PrinterService } from '@/native/printer/PrinterService';
 import {
@@ -40,6 +41,12 @@ const queryClient = new QueryClient({
 });
 
 const SCANNER_PREF_KEY = 'scanner_active_v1';
+
+/** Gọi useFCM bên trong AuthProvider để có access vào user context */
+function FCMRegistrar() {
+  useFCM();
+  return null;
+}
 
 export default function App() {
   const scanRef = useRef<TextInput>(null);
@@ -245,6 +252,7 @@ export default function App() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
+            <FCMRegistrar />
             <StatusBar barStyle="dark-content" backgroundColor={colors.card} />
             <RootNavigator navigationRef={navigationRef} />
 
