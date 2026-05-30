@@ -248,12 +248,20 @@ export function OrderAuditScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Đang tải danh sách đơn…</Text>
         </View>
+      ) : readyQuery.isError ? (
+        <View style={styles.emptyBox}>
+          <Icon name="alert-circle-outline" size={64} color={colors.danger} />
+          <Text style={styles.emptyTitle}>Không tải được dữ liệu</Text>
+          <Text style={styles.emptyDesc}>
+            {String((readyQuery.error as any)?.message ?? 'Lỗi kết nối. Kéo xuống để thử lại.')}
+          </Text>
+        </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyBox}>
           <Icon name="package-variant-closed" size={64} color={colors.textSubtle} />
           <Text style={styles.emptyTitle}>Không có bịch nào trên kệ</Text>
           <Text style={styles.emptyDesc}>
-            Mọi đơn đã được giao hoặc chưa có đơn ở trạng thái "Đã giặt xong".
+            Mọi đơn đã được giao hoặc chưa có đơn nào.
           </Text>
         </View>
       ) : (

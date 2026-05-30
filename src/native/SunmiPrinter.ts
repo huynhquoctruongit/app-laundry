@@ -94,25 +94,39 @@ async function printCode128(text: string) {
   await withTimeout(SunmiPrinterLibrary.printBarcode(text, 'CODE128', 110, 2, 'textUnderBarcode'), 6000);
 }
 
-// ─── Line formatting helpers (32 chars on 80mm at default size) ───────────────
-const LINE_WIDTH = 32;
+// ─── Line formatting helpers ──────────────────────────────────────────────────
+// 80mm giấy nhiệt Sunmi ở font size 22 ≈ 42 ký tự/dòng
+const LINE_WIDTH = 42;
+
+// Loại bỏ dấu tiếng Việt để in trên máy nhiệt (chưa hỗ trợ UTF-8 đầy đủ)
+function removeAccents(str: string): string {
+  return str.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
+// In text có tiếng Việt — tự động bỏ dấu nếu cần
+async function printVN(text: string) {
+  await SunmiPrinterLibrary.printText(removeAccents(text));
+}
 
 function twoCol(left: string, right: string, width = LINE_WIDTH): string {
-  const l = String(left);
-  const r = String(right);
-  const pad = Math.max(1, width - visualLen(l) - visualLen(r));
+  const l = removeAccents(String(left));
+  const r = removeAccents(String(right));
+  const pad = Math.max(1, width - l.length - r.length);
   return l + ' '.repeat(pad) + r;
 }
 
-function threeCol(a: string, b: string, c: string, widths: [number, number, number] = [16, 6, 10]): string {
-  const padR = (s: string, w: number) => (visualLen(s) >= w ? s.slice(0, w) : s + ' '.repeat(w - visualLen(s)));
-  const padL = (s: string, w: number) => (visualLen(s) >= w ? s.slice(0, w) : ' '.repeat(w - visualLen(s)) + s);
-  return padR(a, widths[0]) + padL(b, widths[1]) + padL(c, widths[2]);
+function threeCol(a: string, b: string, c: string, widths: [number, number, number] = [22, 7, 13]): string {
+  const ra = removeAccents(a);
+  const rb = removeAccents(b);
+  const rc = removeAccents(c);
+  const padR = (s: string, w: number) => (s.length >= w ? s.slice(0, w) : s + ' '.repeat(w - s.length));
+  const padL = (s: string, w: number) => (s.length >= w ? s.slice(0, w) : ' '.repeat(w - s.length) + s);
+  return padR(ra, widths[0]) + padL(rb, widths[1]) + padL(rc, widths[2]);
 }
 
-// Vietnamese chars use 1 column on thermal printer (not double-byte like Chinese)
-function visualLen(s: string): number {
-  return s.length;
+// Số tiền cho in nhiệt — không dùng ký tự đặc biệt
+function printMoney(value: number): string {
+  return value.toLocaleString('vi-VN') + 'd';
 }
 
 function pad2(n: number): string {
@@ -197,7 +211,7 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
     await SunmiPrinterLibrary.setAlignment('center');
     await SunmiPrinterLibrary.setTextStyle('bold', true);
     await SunmiPrinterLibrary.setFontSize(30);
-    await SunmiPrinterLibrary.printText('HÓA ĐƠN\n');
+    await printVN('HOA DON\n');
     await SunmiPrinterLibrary.setTextStyle('bold', false);
     await SunmiPrinterLibrary.setFontSize(22);
     const date = new Date(order.createdAt);
@@ -220,18 +234,18 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
     // ── 5. Customer info ──
     await SunmiPrinterLibrary.setAlignment('center');
     await SunmiPrinterLibrary.setFontSize(20);
-    await SunmiPrinterLibrary.printText('KHACH HANG\n');
+    await printVN('KHACH HANG\n');
 
     await SunmiPrinterLibrary.setTextStyle('bold', true);
     const customerFontSize = Math.max(28, (settings.customerNameFontSize ?? 22) + 6);
     await SunmiPrinterLibrary.setFontSize(customerFontSize);
-    await SunmiPrinterLibrary.printText((order.customer?.name ?? '—') + '\n');
+    await printVN((order.customer?.name ?? '-') + '\n');
     await SunmiPrinterLibrary.setTextStyle('bold', false);
     await SunmiPrinterLibrary.setFontSize(22);
 
     if (order.note) {
       await SunmiPrinterLibrary.setAlignment('left');
-      await SunmiPrinterLibrary.printText('Ghi chu: ' + order.note + '\n');
+      await printVN('Ghi chu: ' + order.note + '\n');
     }
     if (order.customer?.phone) {
       await SunmiPrinterLibrary.setAlignment('left');
@@ -249,7 +263,7 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
     await SunmiPrinterLibrary.setAlignment('left');
     await SunmiPrinterLibrary.setTextStyle('bold', true);
     await SunmiPrinterLibrary.setFontSize(22);
-    await SunmiPrinterLibrary.printText(threeCol('Dich vu', 'SL', 'T.Tien') + '\n');
+    await SunmiPrinterLibrary.printText(threeCol('Dich vu', 'SL', 'Thanh tien') + '\n');
     await SunmiPrinterLibrary.setTextStyle('bold', false);
     await divider('-');
 
@@ -259,12 +273,12 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       const it = order.items[i];
       const sl = it.weight ? `${it.quantity}(${it.weight}kg)` : `${it.quantity}`;
       const subtotal = calcLineTotal(it);
-      const nameLine = `${i + 1}.${it.name}`;
-      if (nameLine.length <= 16) {
-        await SunmiPrinterLibrary.printText(threeCol(nameLine, sl, subtotal.toLocaleString('vi-VN')) + '\n');
+      const nameLine = removeAccents(`${i + 1}.${it.name}`);
+      if (nameLine.length <= 22) {
+        await SunmiPrinterLibrary.printText(threeCol(nameLine, sl, printMoney(subtotal)) + '\n');
       } else {
         await SunmiPrinterLibrary.printText(nameLine + '\n');
-        await SunmiPrinterLibrary.printText(threeCol('', sl, subtotal.toLocaleString('vi-VN')) + '\n');
+        await SunmiPrinterLibrary.printText(threeCol('', sl, printMoney(subtotal)) + '\n');
       }
     }
 
@@ -276,27 +290,27 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
     await SunmiPrinterLibrary.setAlignment('left');
     await SunmiPrinterLibrary.setFontSize(22);
     await SunmiPrinterLibrary.printText(
-      twoCol(shippingFee > 0 ? 'Tam tinh' : 'Tong cong', formatCurrency(subtotal)) + '\n',
+      twoCol(shippingFee > 0 ? 'Tam tinh' : 'TONG CONG', printMoney(subtotal)) + '\n',
     );
     if (shippingFee > 0) {
       await SunmiPrinterLibrary.printText(
-        twoCol('Phi ship', '+ ' + formatCurrency(shippingFee)) + '\n',
+        twoCol('Phi ship', '+ ' + printMoney(shippingFee)) + '\n',
       );
     }
     if (settings.invoiceShowDebt && discount > 0) {
       await SunmiPrinterLibrary.printText(
-        twoCol('Giam gia', '- ' + formatCurrency(discount)) + '\n',
+        twoCol('Giam gia', '- ' + printMoney(discount)) + '\n',
       );
     }
     if (shippingFee > 0 || (settings.invoiceShowDebt && discount > 0)) {
       await SunmiPrinterLibrary.setTextStyle('bold', true);
       await SunmiPrinterLibrary.setFontSize(26);
-      await SunmiPrinterLibrary.printText(twoCol('Tong cong', formatCurrency(grandTotal)) + '\n');
+      await SunmiPrinterLibrary.printText(twoCol('TONG CONG', printMoney(grandTotal)) + '\n');
       await SunmiPrinterLibrary.setTextStyle('bold', false);
     } else {
       await SunmiPrinterLibrary.setTextStyle('bold', true);
       await SunmiPrinterLibrary.setFontSize(24);
-      await SunmiPrinterLibrary.printText(twoCol('Tong cong', formatCurrency(subtotal)) + '\n');
+      await SunmiPrinterLibrary.printText(twoCol('TONG CONG', printMoney(subtotal)) + '\n');
       await SunmiPrinterLibrary.setTextStyle('bold', false);
     }
 

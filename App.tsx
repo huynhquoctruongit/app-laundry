@@ -237,6 +237,8 @@ export default function App() {
     if (!scannerActive) return;
     if (!navigationRef.isReady()) return;
     const unsubscribe = navigationRef.addListener('state', () => {
+      // Xoá buffer khi chuyển màn để tránh input thừa trigger nhầm
+      setScanBuffer('');
       // Delay đủ để screen mới mount xong
       setTimeout(() => {
         if (!Keyboard.isVisible()) {
@@ -259,21 +261,24 @@ export default function App() {
             {/* Hidden TextInput — chỉ mount khi scanner active.
                 Khi không active, KHÔNG render TextInput → không có focus battle,
                 user tap UI không bị double-tap. */}
+            {/* pointerEvents="none" → TextInput không chặn tap của các button khác
+                nhưng vẫn nhận key events từ máy quét khi được focus bằng code */}
             {scannerActive && (
-              <TextInput
-                ref={scanRef}
-                value={scanBuffer}
-                onChangeText={handleScanChange}
-                onSubmitEditing={handleScanSubmit}
-                onBlur={handleScanBlur}
-                blurOnSubmit={false}
-                caretHidden
-                showSoftInputOnFocus={false}
-                style={styles.hiddenInput}
-                autoCorrect={false}
-                autoCapitalize="none"
-                importantForAutofill="no"
-              />
+              <View pointerEvents="none" style={styles.hiddenInput}>
+                <TextInput
+                  ref={scanRef}
+                  value={scanBuffer}
+                  onChangeText={handleScanChange}
+                  onSubmitEditing={handleScanSubmit}
+                  onBlur={handleScanBlur}
+                  blurOnSubmit={false}
+                  caretHidden
+                  showSoftInputOnFocus={false}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  importantForAutofill="no"
+                />
+              </View>
             )}
 
             {/* Floating button — toggle scanner */}

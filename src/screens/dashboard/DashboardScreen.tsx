@@ -76,6 +76,15 @@ export function DashboardScreen() {
         />
       }
     >
+      {/* Quick create button — nổi bật */}
+      <Pressable
+        onPress={() => navigation.navigate('OrderCreate')}
+        style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.85 }]}
+      >
+        <Icon name="plus-circle" size={28} color="#fff" />
+        <Text style={styles.createBtnText}>Tạo đơn mới</Text>
+      </Pressable>
+
       {/* Stats */}
       <View style={styles.statsGrid}>
         {stats.map((s) => (
@@ -217,6 +226,22 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  createBtnText: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   statLabel: { fontSize: 13, color: colors.textMuted },
   statValue: { fontSize: 22, fontWeight: '700', color: colors.text },

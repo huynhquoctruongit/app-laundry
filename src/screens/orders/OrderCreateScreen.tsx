@@ -239,11 +239,13 @@ export function OrderCreateScreen() {
   }
 
   return (
+    <View style={styles.container}>
     <ScrollView
-      style={styles.container}
+      style={{ flex: 1 }}
       contentContainerStyle={{
         padding: isPhone ? spacing.md : spacing.lg,
         gap: spacing.lg,
+        paddingBottom: 140,
       }}
     >
       {/* Customer */}
@@ -452,34 +454,6 @@ export function OrderCreateScreen() {
         </CardContent>
       </Card>
 
-      {/* Total + submit */}
-      <Card>
-        <CardContent style={{ gap: spacing.md, padding: spacing.lg }}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Tổng cộng</Text>
-            <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
-          </View>
-          <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
-            <Button
-              variant="outline"
-              onPress={() => navigation.goBack()}
-              style={{ flex: isPhone ? undefined : 1 }}
-            >
-              Huỷ
-            </Button>
-            <Button
-              size="lg"
-              onPress={handleSubmit}
-              loading={createOrderMutation.isPending}
-              style={{ flex: isPhone ? undefined : 2 }}
-              leftIcon={<Icon name="check" size={22} color="#fff" />}
-            >
-              Tạo đơn
-            </Button>
-          </View>
-        </CardContent>
-      </Card>
-
       {/* Customer picker modal */}
       <Modal
         visible={customerPickerOpen}
@@ -651,6 +625,33 @@ export function OrderCreateScreen() {
         </View>
       </Modal>
     </ScrollView>
+
+    {/* Footer cố định — tổng tiền + nút tạo đơn */}
+    <View style={styles.footer}>
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Tổng cộng</Text>
+        <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+      </View>
+      <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
+        <Button
+          variant="outline"
+          onPress={() => navigation.goBack()}
+          style={{ flex: isPhone ? undefined : 1 }}
+        >
+          Huỷ
+        </Button>
+        <Button
+          size="lg"
+          onPress={handleSubmit}
+          loading={createOrderMutation.isPending}
+          style={{ flex: isPhone ? undefined : 2 }}
+          leftIcon={<Icon name="check" size={22} color="#fff" />}
+        >
+          Tạo đơn
+        </Button>
+      </View>
+    </View>
+    </View>
   );
 }
 
@@ -744,6 +745,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
   },
   dateBtnText: { fontSize: 15, color: colors.text, flex: 1 },
+  footer: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 8,
+  },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
   totalValue: { fontSize: 22, fontWeight: '700', color: colors.primary },
