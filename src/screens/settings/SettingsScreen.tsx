@@ -611,7 +611,7 @@ function InvoicePreview({
         <Divider />
 
         {/* Title */}
-        <Text style={[pvStyles.center, { fontSize: fs(28), fontWeight: '800' }]}>HOA DON</Text>
+        <Text style={[pvStyles.center, { fontSize: fs(28), fontWeight: '800' }]}>HÓA ĐƠN</Text>
         <Text style={[pvStyles.center, { fontSize: fs(18), color: '#555' }]}>
           LD-20260101-DEMO  01/01/2026 08:00
         </Text>
@@ -628,26 +628,26 @@ function InvoicePreview({
         <Divider />
 
         {/* Customer */}
-        <Text style={[pvStyles.center, { fontSize: fs(18), color: '#666' }]}>KHACH HANG</Text>
+        <Text style={[pvStyles.center, { fontSize: fs(18), color: '#666' }]}>KHÁCH HÀNG</Text>
         <Text style={[pvStyles.center, { fontSize: fs(customerNameFontSize), fontWeight: '800' }]}>
-          Nguyen Van A
+          Nguyễn Văn A
         </Text>
-        <Text style={{ fontSize: fs(18), color: '#444', alignSelf: 'flex-start' }}>SDT: 0901234567</Text>
+        <Text style={{ fontSize: fs(18), color: '#444', alignSelf: 'flex-start' }}>SĐT: 0901234567</Text>
 
         <Divider />
 
         {/* Table header */}
         <View style={{ flexDirection: 'row', width: '100%' }}>
-          <Text style={{ fontSize: fs(20), fontWeight: '700', flex: 1 }}>Dich vu</Text>
+          <Text style={{ fontSize: fs(20), fontWeight: '700', flex: 1 }}>Dịch vụ</Text>
           <Text style={{ fontSize: fs(20), fontWeight: '700', width: 30, textAlign: 'right' }}>SL</Text>
-          <Text style={{ fontSize: fs(20), fontWeight: '700', width: 70, textAlign: 'right' }}>Thanh tien</Text>
+          <Text style={{ fontSize: fs(20), fontWeight: '700', width: 70, textAlign: 'right' }}>Thành tiền</Text>
         </View>
         <Divider />
 
         {/* Sample items */}
         {[
-          { name: 'Giat say thuong', qty: 2, price: 60000 },
-          { name: 'Giat kho ao vest', qty: 1, price: 45000 },
+          { name: 'Giặt sấy thường', qty: 2, price: 60000 },
+          { name: 'Giặt khô áo vest', qty: 1, price: 45000 },
         ].map((it, i) => (
           <View key={i} style={{ flexDirection: 'row', width: '100%' }}>
             <Text style={{ fontSize: fs(invoiceFontSize - 2), flex: 1 }}>{`${i + 1}.${it.name}`}</Text>
@@ -661,15 +661,15 @@ function InvoicePreview({
         <Divider />
 
         {/* Total */}
-        <Row left="TONG CONG" right="105.000d" />
-        {showDebt && <Row left="Giam gia" right="-5.000d" />}
+        <Row left="TỔNG CỘNG" right="105.000d" />
+        {showDebt && <Row left="Giảm giá" right="-5.000d" />}
 
         {/* QR placeholder */}
         {showQR && (
           <>
             <Divider />
-            <Text style={[pvStyles.center, { fontSize: fs(20), fontWeight: '700' }]}>GIAO NHAN DO TAI NHA</Text>
-            <Text style={[pvStyles.center, { fontSize: fs(16), color: '#666' }]}>Quet ma QR de dat don</Text>
+            <Text style={[pvStyles.center, { fontSize: fs(20), fontWeight: '700' }]}>GIAO NHẬN ĐỒ TẠI NHÀ</Text>
+            <Text style={[pvStyles.center, { fontSize: fs(16), color: '#666' }]}>Quét mã QR để đặt đơn</Text>
             <View style={pvStyles.qrBox}>
               <Icon name="qrcode" size={60} color="#111" />
             </View>
@@ -678,7 +678,7 @@ function InvoicePreview({
 
         <Divider />
         <Text style={[pvStyles.center, { fontSize: fs(18), color: '#555' }]}>
-          Cam on quy khach! Hen gap lai.
+          Cảm ơn quý khách! Hẹn gặp lại.
         </Text>
       </View>
     </View>
