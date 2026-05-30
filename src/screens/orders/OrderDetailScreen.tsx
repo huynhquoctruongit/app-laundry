@@ -103,8 +103,13 @@ export function OrderDetailScreen() {
   const discount = Number(order.discountAmount ?? 0);
   const remaining = Number(order.totalAmount) - discount;
 
+  const hasFooter =
+    (!canChangeStatus && canCompleteOrder && order.status === 'READY') ||
+    (canChangeStatus && nextStatuses.length > 0);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+    <View style={styles.container}>
+    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: hasFooter ? 140 : spacing.lg }}>
       {/* Header info */}
       <Card>
         <CardHeader style={styles.cardHeader}>
@@ -202,39 +207,6 @@ export function OrderDetailScreen() {
         settings={settingsQuery.data ?? null}
       />
 
-      {/* Nút hoàn thành cho nhân viên (READY → DELIVERED) */}
-      {!canChangeStatus && canCompleteOrder && order.status === 'READY' && (
-        <Button
-          size="lg"
-          fullWidth
-          onPress={() => statusMutation.mutate('DELIVERED')}
-          loading={statusMutation.isPending}
-          leftIcon={<Icon name="check-circle-outline" size={22} color="#fff" />}
-        >
-          Hoàn thành — Đã giao cho khách
-        </Button>
-      )}
-
-      {/* Status update (Admin) */}
-      {canChangeStatus && nextStatuses.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>Cập nhật trạng thái</CardTitle></CardHeader>
-          <CardContent style={{ gap: spacing.sm }}>
-            {nextStatuses.map((s) => (
-              <Button
-                key={s}
-                variant={s === 'CANCELLED' ? 'outline' : 'default'}
-                onPress={() => statusMutation.mutate(s)}
-                loading={statusMutation.isPending}
-                fullWidth
-              >
-                {STATUS_ACTION_LABEL[s] ?? `Chuyển sang: ${ORDER_STATUS_LABEL[s]}`}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Scan history */}
       <Card>
         <CardHeader><CardTitle>Lịch sử scan</CardTitle></CardHeader>
@@ -258,6 +230,39 @@ export function OrderDetailScreen() {
         </CardContent>
       </Card>
     </ScrollView>
+
+    {/* Footer cố định — nút hoàn thành / đổi trạng thái */}
+    {hasFooter && (
+      <View style={styles.footer}>
+        {!canChangeStatus && canCompleteOrder && order.status === 'READY' && (
+          <Button
+            size="lg"
+            fullWidth
+            onPress={() => statusMutation.mutate('DELIVERED')}
+            loading={statusMutation.isPending}
+            leftIcon={<Icon name="check-circle-outline" size={22} color="#fff" />}
+          >
+            Hoàn thành — Đã giao cho khách
+          </Button>
+        )}
+        {canChangeStatus && nextStatuses.length > 0 && (
+          <View style={{ gap: spacing.sm }}>
+            {nextStatuses.map((s) => (
+              <Button
+                key={s}
+                variant={s === 'CANCELLED' ? 'outline' : 'default'}
+                onPress={() => statusMutation.mutate(s)}
+                loading={statusMutation.isPending}
+                fullWidth
+              >
+                {STATUS_ACTION_LABEL[s] ?? `Chuyển sang: ${ORDER_STATUS_LABEL[s]}`}
+              </Button>
+            ))}
+          </View>
+        )}
+      </View>
+    )}
+    </View>
   );
 }
 
@@ -273,6 +278,19 @@ function InfoCol({ label, value, sub }: { label: string; value: string; sub?: st
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  footer: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 8,
+  },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
   itemRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
