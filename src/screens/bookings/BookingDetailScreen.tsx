@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { BookingStatusBadge } from '@/components/common/BookingStatusBadge';
-import { bookingApi, type BookingItemPayload } from '@/api/booking.api';
+import { bookingApi, type BookingItemPayload, type UpdateBookingPayload } from '@/api/booking.api';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { colors } from '@/theme/colors';
@@ -39,7 +40,7 @@ export function BookingDetailScreen() {
   const navigation = useNavigation<any>();
   const { id } = route.params;
   const queryClient = useQueryClient();
-  const { canEdit } = usePermissions();
+  const { canEdit, isAdmin } = usePermissions();
 
   const bookingQuery = useQuery({
     queryKey: ['booking', id],
@@ -50,6 +51,12 @@ export function BookingDetailScreen() {
   const [convertItems, setConvertItems] = useState<ConvertItem[]>([]);
   const [discount, setDiscount] = useState('0');
   const [convertNote, setConvertNote] = useState('');
+
+  // Edit modal state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editNote, setEditNote] = useState('');
 
   const statusMutation = useMutation({
     mutationFn: (status: 'CONFIRMED' | 'CANCELLED') =>
@@ -64,6 +71,48 @@ export function BookingDetailScreen() {
     },
     onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => bookingApi.remove(id),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Đã xoá đặt lịch' });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      navigation.goBack();
+    },
+    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: UpdateBookingPayload) => bookingApi.update(id, payload),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Đã cập nhật đặt lịch' });
+      queryClient.invalidateQueries({ queryKey: ['booking', id] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      setEditOpen(false);
+    },
+    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+
+  function openEdit() {
+    const b = bookingQuery.data;
+    if (!b) return;
+    setEditPhone(b.phone ?? '');
+    setEditAddress(b.address ?? '');
+    setEditNote(b.note ?? '');
+    setEditOpen(true);
+  }
+
+  function confirmDelete() {
+    const b = bookingQuery.data;
+    Alert.alert(
+      'Xoá đặt lịch',
+      `Xoá đặt lịch ${b?.code ?? ''}?\nHành động này không thể hoàn tác.`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Xoá', style: 'destructive', onPress: () => deleteMutation.mutate() },
+      ],
+    );
+  }
 
   const convertMutation = useMutation({
     mutationFn: () => {
@@ -227,6 +276,51 @@ export function BookingDetailScreen() {
           </Button>
         </View>
       )}
+
+      {/* Admin: sửa + xoá */}
+      {isAdmin && (
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <Button
+            variant="outline"
+            style={{ flex: 1 }}
+            leftIcon={<Icon name="pencil-outline" size={20} color={colors.primary} />}
+            onPress={openEdit}
+          >
+            Sửa
+          </Button>
+          <Button
+            variant="outline"
+            style={{ flex: 1, borderColor: colors.danger }}
+            leftIcon={<Icon name="trash-can-outline" size={20} color={colors.danger} />}
+            loading={deleteMutation.isPending}
+            onPress={confirmDelete}
+          >
+            <Text style={{ color: colors.danger }}>Xoá</Text>
+          </Button>
+        </View>
+      )}
+
+      {/* Edit modal */}
+      <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Sửa đặt lịch</Text>
+            <Input label="Số điện thoại" value={editPhone} onChangeText={setEditPhone} keyboardType="phone-pad" />
+            <Input label="Địa chỉ" value={editAddress} onChangeText={setEditAddress} />
+            <Input label="Ghi chú" value={editNote} onChangeText={setEditNote} multiline numberOfLines={3} style={{ minHeight: 72, textAlignVertical: 'top' }} />
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
+              <Button variant="outline" style={{ flex: 1 }} onPress={() => setEditOpen(false)}>Huỷ</Button>
+              <Button
+                style={{ flex: 1 }}
+                loading={updateMutation.isPending}
+                onPress={() => updateMutation.mutate({ phone: editPhone, address: editAddress, note: editNote || null })}
+              >
+                Lưu
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Convert modal */}
       <Modal
