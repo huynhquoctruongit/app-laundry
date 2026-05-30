@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -46,11 +46,22 @@ const emptyItem: DraftItem = {
 
 export function OrderCreateScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const editId: string | undefined = route.params?.editId;
+  const isEditMode = !!editId;
+
   const queryClient = useQueryClient();
   const { canCreate } = usePermissions();
   const { isPhone } = useResponsive();
 
   const [customerId, setCustomerId] = useState('');
+
+  // Load existing order nếu đang edit
+  const editQuery = useQuery({
+    queryKey: ['order', editId],
+    queryFn: () => orderApi.detail(editId!),
+    enabled: isEditMode,
+  });
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -100,22 +111,22 @@ export function OrderCreateScreen() {
       Toast.show({ type: 'error', text1: extractError(err).message }),
   });
 
+  const orderPayload = () => ({
+    customerId,
+    note: note || undefined,
+    pickupAt: pickupAt ? pickupAt.toISOString() : undefined,
+    items: items.map((i) => ({
+      productId: i.productId || undefined,
+      name: i.name,
+      quantity: Number(i.quantity),
+      weight: i.weight ? Number(i.weight) : undefined,
+      unitPrice: Number(i.unitPrice),
+    })),
+  });
+
   const createOrderMutation = useMutation({
-    mutationFn: () =>
-      orderApi.create({
-        customerId,
-        note: note || undefined,
-        pickupAt: pickupAt ? pickupAt.toISOString() : undefined,
-        items: items.map((i) => ({
-          productId: i.productId || undefined,
-          name: i.name,
-          quantity: Number(i.quantity),
-          weight: i.weight ? Number(i.weight) : undefined,
-          unitPrice: Number(i.unitPrice),
-        })),
-      }),
+    mutationFn: () => orderApi.create(orderPayload()),
     onSuccess: (order) => {
-      // Invalidate để Dashboard / OrdersScreen / Audit refresh ngay
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['report'] });
       queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'stats'] });
@@ -125,6 +136,37 @@ export function OrderCreateScreen() {
     onError: (err) =>
       Toast.show({ type: 'error', text1: extractError(err).message }),
   });
+
+  const updateOrderMutation = useMutation({
+    mutationFn: () => orderApi.update(editId!, orderPayload()),
+    onSuccess: (order) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order', editId] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+      Toast.show({ type: 'success', text1: 'Đã cập nhật đơn' });
+      navigation.goBack();
+    },
+    onError: (err) =>
+      Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+
+  // Pre-fill form khi edit
+  useEffect(() => {
+    const o = editQuery.data;
+    if (!o) return;
+    setCustomerId(o.customer?.id ?? '');
+    setNote(o.note ?? '');
+    setPickupAt(o.pickupAt ? new Date(o.pickupAt) : null);
+    setItems(
+      o.items.map((it) => ({
+        productId: it.productId ?? undefined,
+        name: it.name,
+        quantity: String(it.quantity),
+        weight: it.weight ? String(it.weight) : '',
+        unitPrice: String(it.unitPrice),
+      })),
+    );
+  }, [editQuery.data]);
 
   const customer = useMemo<Customer | undefined>(
     () => customersQuery.data?.items.find((c) => c.id === customerId),
@@ -220,7 +262,11 @@ export function OrderCreateScreen() {
         return;
       }
     }
-    createOrderMutation.mutate();
+    if (isEditMode) {
+      updateOrderMutation.mutate();
+    } else {
+      createOrderMutation.mutate();
+    }
   }
 
   if (!canCreate) {
@@ -643,11 +689,11 @@ export function OrderCreateScreen() {
         <Button
           size="lg"
           onPress={handleSubmit}
-          loading={createOrderMutation.isPending}
+          loading={isEditMode ? updateOrderMutation.isPending : createOrderMutation.isPending}
           style={{ flex: isPhone ? undefined : 2 }}
           leftIcon={<Icon name="check" size={22} color="#fff" />}
         >
-          Tạo đơn
+          {isEditMode ? 'Lưu thay đổi' : 'Tạo đơn'}
         </Button>
       </View>
     </View>

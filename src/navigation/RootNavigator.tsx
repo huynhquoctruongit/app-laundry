@@ -15,7 +15,7 @@ export type RootStackParamList = {
   Login: undefined;
   Main: undefined;
   OrderDetail: { id: string; autoPrint?: boolean };
-  OrderCreate: undefined;
+  OrderCreate: { editId?: string } | undefined;
   BookingDetail: { id: string };
   Scanner: undefined;
 };
@@ -51,7 +51,10 @@ export function RootNavigator({ navigationRef }: Props) {
             <Stack.Screen
               name="OrderCreate"
               component={OrderCreateScreen}
-              options={{ headerShown: true, title: 'Tạo đơn mới' }}
+              options={({ route }) => ({
+                headerShown: true,
+                title: (route.params as any)?.editId ? 'Sửa đơn' : 'Tạo đơn mới',
+              })}
             />
             <Stack.Screen
               name="BookingDetail"

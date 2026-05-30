@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from '@/components/ui/Button';
@@ -22,9 +22,10 @@ type R = RouteProp<RootStackParamList, 'OrderDetail'>;
 
 export function OrderDetailScreen() {
   const route = useRoute<R>();
+  const navigation = useNavigation<any>();
   const { id, autoPrint } = route.params;
   const queryClient = useQueryClient();
-  const { canChangeStatus, canCompleteOrder } = usePermissions();
+  const { canChangeStatus, canCompleteOrder, canDelete, canEdit, isAdmin } = usePermissions();
   const [previewOpen, setPreviewOpen] = useState(false);
   const autoPrintTriggered = useRef(false);
 
@@ -58,6 +59,28 @@ export function OrderDetailScreen() {
     },
     onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => orderApi.remove(id),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Đã xoá đơn' });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+      navigation.goBack();
+    },
+    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+
+  function confirmDelete() {
+    Alert.alert(
+      'Xoá đơn hàng',
+      `Bạn có chắc muốn xoá đơn ${orderQuery.data?.code ?? ''}?\nHành động này không thể hoàn tác.`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Xoá', style: 'destructive', onPress: () => deleteMutation.mutate() },
+      ],
+    );
+  }
 
   if (orderQuery.isLoading) {
     return (
@@ -146,6 +169,31 @@ export function OrderDetailScreen() {
           Xem & in hoá đơn
         </Button>
       </View>
+
+      {/* Admin: sửa + xoá bất kỳ đơn nào */}
+      {isAdmin && (
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <Button
+            variant="outline"
+            size="lg"
+            style={{ flex: 1 }}
+            leftIcon={<Icon name="pencil-outline" size={20} color={colors.primary} />}
+            onPress={() => navigation.navigate('OrderCreate', { editId: id })}
+          >
+            Sửa đơn
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            style={{ flex: 1, borderColor: colors.danger }}
+            leftIcon={<Icon name="trash-can-outline" size={20} color={colors.danger} />}
+            loading={deleteMutation.isPending}
+            onPress={confirmDelete}
+          >
+            <Text style={{ color: colors.danger }}>Xoá đơn</Text>
+          </Button>
+        </View>
+      )}
 
       <InvoicePreviewModal
         visible={previewOpen}

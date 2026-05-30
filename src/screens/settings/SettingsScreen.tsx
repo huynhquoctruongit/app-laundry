@@ -316,15 +316,6 @@ export function SettingsScreen() {
                 placeholder="7:00 - 22:00"
               />
 
-              <Input
-                label="Phí ship (đơn booking QR)"
-                hint="Cộng thêm trên hoá đơn khi đơn đặt giao nhận qua mã QR"
-                value={bookingShippingFee}
-                onChangeText={setBookingShippingFee}
-                keyboardType="numeric"
-                placeholder="20000"
-              />
-
               <Button
                 onPress={() =>
                   saveMutation.mutate({
