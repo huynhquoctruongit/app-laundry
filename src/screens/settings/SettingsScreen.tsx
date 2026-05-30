@@ -263,6 +263,24 @@ export function SettingsScreen() {
         )}
 
         {tab === 'invoice' && (
+          <>
+          {/* ── Live preview ── */}
+          <InvoicePreview
+            shopName={shopName}
+            phone={phone}
+            address={address}
+            website={website}
+            invoiceFontSize={invoiceFontSize}
+            customerNameFontSize={customerNameFontSize}
+            showShopName={invoiceShowShopName}
+            showPhone={invoiceShowPhone}
+            showAddress={invoiceShowAddress}
+            showWebsite={invoiceShowWebsite}
+            showBarcode={invoiceShowBarcode}
+            showQR={invoiceShowQR}
+            showDebt={invoiceShowDebt}
+          />
+
           <Card>
             <CardHeader><CardTitle>Hóa đơn & Tem nhãn</CardTitle></CardHeader>
             <CardContent style={{ gap: spacing.lg }}>
@@ -332,6 +350,7 @@ export function SettingsScreen() {
               </Button>
             </CardContent>
           </Card>
+          </>
         )}
 
         {tab === 'features' && (
@@ -526,6 +545,182 @@ export function SettingsScreen() {
     </View>
   );
 }
+
+// ─── Invoice Live Preview ────────────────────────────────────────────────────
+
+interface InvoicePreviewProps {
+  shopName: string;
+  phone: string;
+  address: string;
+  website: string;
+  invoiceFontSize: number;
+  customerNameFontSize: number;
+  showShopName: boolean;
+  showPhone: boolean;
+  showAddress: boolean;
+  showWebsite: boolean;
+  showBarcode: boolean;
+  showQR: boolean;
+  showDebt: boolean;
+}
+
+function InvoicePreview({
+  shopName, phone, address, website,
+  invoiceFontSize, customerNameFontSize,
+  showShopName, showPhone, showAddress, showWebsite,
+  showBarcode, showQR, showDebt,
+}: InvoicePreviewProps) {
+  // Scale font xuống ~60% để vừa màn hình
+  const scale = 0.6;
+  const fs = (n: number) => Math.round(n * scale);
+
+  const Divider = () => (
+    <Text style={{ fontFamily: 'monospace', fontSize: fs(20), color: '#555', letterSpacing: 1 }}>
+      {'- '.repeat(18)}
+    </Text>
+  );
+
+  const Row = ({ left, right }: { left: string; right: string }) => (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+      <Text style={{ fontSize: fs(20), color: '#222' }}>{left}</Text>
+      <Text style={{ fontSize: fs(20), color: '#222' }}>{right}</Text>
+    </View>
+  );
+
+  return (
+    <View style={pvStyles.wrapper}>
+      <Text style={pvStyles.label}>Xem trước hóa đơn</Text>
+      <View style={pvStyles.paper}>
+
+        {/* Shop name */}
+        {showShopName && (
+          <Text style={[pvStyles.center, { fontSize: fs(invoiceFontSize + 8), fontWeight: '800' }]}>
+            {shopName || 'TÊN CỬA HÀNG'}
+          </Text>
+        )}
+        {showAddress && address ? (
+          <Text style={[pvStyles.center, { fontSize: fs(20) }]}>{address}</Text>
+        ) : null}
+        {showPhone && phone ? (
+          <Text style={[pvStyles.center, { fontSize: fs(22), fontWeight: '700' }]}>{phone}</Text>
+        ) : null}
+        {showWebsite && website ? (
+          <Text style={[pvStyles.center, { fontSize: fs(18) }]}>{website}</Text>
+        ) : null}
+
+        <Divider />
+
+        {/* Title */}
+        <Text style={[pvStyles.center, { fontSize: fs(28), fontWeight: '800' }]}>HOA DON</Text>
+        <Text style={[pvStyles.center, { fontSize: fs(18), color: '#555' }]}>
+          LD-20260101-DEMO  01/01/2026 08:00
+        </Text>
+
+        {/* Barcode placeholder */}
+        {showBarcode && (
+          <View style={pvStyles.barcode}>
+            {Array.from({ length: 30 }).map((_, i) => (
+              <View key={i} style={[pvStyles.bar, { width: i % 3 === 0 ? 3 : 1.5, backgroundColor: i % 7 === 0 ? '#fff' : '#111' }]} />
+            ))}
+          </View>
+        )}
+
+        <Divider />
+
+        {/* Customer */}
+        <Text style={[pvStyles.center, { fontSize: fs(18), color: '#666' }]}>KHACH HANG</Text>
+        <Text style={[pvStyles.center, { fontSize: fs(customerNameFontSize), fontWeight: '800' }]}>
+          Nguyen Van A
+        </Text>
+        <Text style={{ fontSize: fs(18), color: '#444', alignSelf: 'flex-start' }}>SDT: 0901234567</Text>
+
+        <Divider />
+
+        {/* Table header */}
+        <View style={{ flexDirection: 'row', width: '100%' }}>
+          <Text style={{ fontSize: fs(20), fontWeight: '700', flex: 1 }}>Dich vu</Text>
+          <Text style={{ fontSize: fs(20), fontWeight: '700', width: 30, textAlign: 'right' }}>SL</Text>
+          <Text style={{ fontSize: fs(20), fontWeight: '700', width: 70, textAlign: 'right' }}>Thanh tien</Text>
+        </View>
+        <Divider />
+
+        {/* Sample items */}
+        {[
+          { name: 'Giat say thuong', qty: 2, price: 60000 },
+          { name: 'Giat kho ao vest', qty: 1, price: 45000 },
+        ].map((it, i) => (
+          <View key={i} style={{ flexDirection: 'row', width: '100%' }}>
+            <Text style={{ fontSize: fs(invoiceFontSize - 2), flex: 1 }}>{`${i + 1}.${it.name}`}</Text>
+            <Text style={{ fontSize: fs(invoiceFontSize - 2), width: 30, textAlign: 'right' }}>{it.qty}</Text>
+            <Text style={{ fontSize: fs(invoiceFontSize - 2), width: 70, textAlign: 'right' }}>
+              {it.price.toLocaleString('vi-VN')}d
+            </Text>
+          </View>
+        ))}
+
+        <Divider />
+
+        {/* Total */}
+        <Row left="TONG CONG" right="105.000d" />
+        {showDebt && <Row left="Giam gia" right="-5.000d" />}
+
+        {/* QR placeholder */}
+        {showQR && (
+          <>
+            <Divider />
+            <Text style={[pvStyles.center, { fontSize: fs(20), fontWeight: '700' }]}>GIAO NHAN DO TAI NHA</Text>
+            <Text style={[pvStyles.center, { fontSize: fs(16), color: '#666' }]}>Quet ma QR de dat don</Text>
+            <View style={pvStyles.qrBox}>
+              <Icon name="qrcode" size={60} color="#111" />
+            </View>
+          </>
+        )}
+
+        <Divider />
+        <Text style={[pvStyles.center, { fontSize: fs(18), color: '#555' }]}>
+          Cam on quy khach! Hen gap lai.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const pvStyles = StyleSheet.create({
+  wrapper: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  paper: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  center: { textAlign: 'center', alignSelf: 'stretch' },
+  barcode: {
+    flexDirection: 'row',
+    height: 40,
+    alignItems: 'stretch',
+    gap: 1,
+    marginVertical: 4,
+  },
+  bar: { height: '100%' },
+  qrBox: { marginVertical: 4 },
+});
 
 function SizeStepper({
   label,
