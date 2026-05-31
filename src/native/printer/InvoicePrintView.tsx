@@ -6,7 +6,7 @@
  *  2. Dùng react-native-view-shot capture thành base64 PNG
  *  3. Gửi base64 tới SunmiPrinterLibrary.printImage()
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import type { Order, ShopSettings } from '@/types/api';
@@ -40,6 +40,11 @@ export function InvoicePrintView({ order, settings }: Props) {
   const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
   const total = subtotal;
 
+  // Cỡ chữ lấy từ cài đặt (clamp về khoảng hợp lý cho ảnh in)
+  const baseFont = clamp(settings.invoiceFontSize ?? 15, 12, 26);
+  const nameFont = clamp(settings.customerNameFontSize ?? 22, 16, 34);
+  const s = useMemo(() => makeStyles(baseFont), [baseFont]);
+
   const Divider = () => (
     <View style={s.divider} />
   );
@@ -67,7 +72,7 @@ export function InvoicePrintView({ order, settings }: Props) {
 
       {/* Customer */}
       <Text style={s.sectionLabel}>KHÁCH HÀNG</Text>
-      <Text style={[s.customerName, { fontSize: Math.max(20, (settings.customerNameFontSize ?? 22)) }]}>
+      <Text style={[s.customerName, { fontSize: nameFont }]}>
         {order.customer?.name ?? '—'}
       </Text>
       {order.customer?.phone ? <Text style={s.meta}>SĐT: {order.customer.phone}</Text> : null}
@@ -148,66 +153,73 @@ export function InvoicePrintView({ order, settings }: Props) {
   );
 }
 
-const FONT = 15;
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(Math.max(n, min), max);
+}
 
-const s = StyleSheet.create({
-  paper: {
-    width: PRINT_WIDTH_PX,
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingTop: 2,
-    paddingBottom: 0,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#000',
-    marginVertical: 6,
-  },
-  center: { textAlign: 'center', fontSize: FONT, color: '#000' },
-  codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 6 },
-  qrCta: {
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#000',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    marginVertical: 4,
-  },
-  qrTitle: {
-    fontSize: FONT + 9,
-    fontWeight: '900',
-    color: '#000',
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  qrSubtitle: {
-    fontSize: FONT,
-    fontWeight: '600',
-    color: '#000',
-    textAlign: 'center',
-    marginTop: 3,
-    marginBottom: 8,
-  },
-  qrBox: {
-    backgroundColor: '#fff',
-    padding: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
-  title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 2 },
-  sectionLabel: { textAlign: 'center', fontSize: FONT - 1, color: '#333', marginBottom: 2 },
-  customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 2 },
-  meta: { fontSize: FONT - 1, color: '#333' },
-  row: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 2 },
-  col1: { flex: 1, fontSize: FONT, color: '#000', flexWrap: 'wrap' },
-  col2: { width: 50, textAlign: 'center', fontSize: FONT, color: '#000' },
-  col3: { width: 90, textAlign: 'right', fontSize: FONT, color: '#000' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 1 },
-  totalLabel: { fontSize: FONT, color: '#000' },
-  totalValue: { fontSize: FONT, color: '#000' },
-  bold: { fontWeight: '700' },
-  big: { fontSize: FONT + 3 },
-});
+/** Styles theo cỡ chữ FONT (px trong ảnh 384) — cột co theo font để không tràn */
+function makeStyles(FONT: number) {
+  const col2W = Math.round(FONT * 3.2); // cột SL
+  const col3W = Math.round(FONT * 6);   // cột Thành tiền
+  return StyleSheet.create({
+    paper: {
+      width: PRINT_WIDTH_PX,
+      backgroundColor: '#fff',
+      paddingHorizontal: 12,
+      paddingTop: 2,
+      paddingBottom: 0,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: '#000',
+      marginVertical: 6,
+    },
+    center: { textAlign: 'center', fontSize: FONT, color: '#000' },
+    codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 6 },
+    qrCta: {
+      alignItems: 'center',
+      borderWidth: 3,
+      borderColor: '#000',
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      marginVertical: 4,
+    },
+    qrTitle: {
+      fontSize: FONT + 9,
+      fontWeight: '900',
+      color: '#000',
+      textAlign: 'center',
+      letterSpacing: 0.5,
+    },
+    qrSubtitle: {
+      fontSize: FONT,
+      fontWeight: '600',
+      color: '#000',
+      textAlign: 'center',
+      marginTop: 3,
+      marginBottom: 8,
+    },
+    qrBox: {
+      backgroundColor: '#fff',
+      padding: 8,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
+    title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 2 },
+    sectionLabel: { textAlign: 'center', fontSize: FONT - 1, color: '#333', marginBottom: 2 },
+    customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 2 },
+    meta: { fontSize: FONT - 1, color: '#333' },
+    row: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 2 },
+    col1: { flex: 1, fontSize: FONT, color: '#000', flexWrap: 'wrap' },
+    col2: { width: col2W, textAlign: 'center', fontSize: FONT, color: '#000' },
+    col3: { width: col3W, textAlign: 'right', fontSize: FONT, color: '#000' },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 1 },
+    totalLabel: { fontSize: FONT, color: '#000' },
+    totalValue: { fontSize: FONT, color: '#000' },
+    bold: { fontWeight: '700' },
+    big: { fontSize: FONT + 3 },
+  });
+}

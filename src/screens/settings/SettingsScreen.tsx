@@ -288,15 +288,15 @@ export function SettingsScreen() {
                 label="Cỡ chữ hóa đơn"
                 value={invoiceFontSize}
                 onChange={setInvoiceFontSize}
-                min={16}
-                max={48}
+                min={12}
+                max={26}
               />
               <SizeStepper
                 label="Cỡ chữ tên khách hàng"
                 value={customerNameFontSize}
                 onChange={setCustomerNameFontSize}
                 min={16}
-                max={56}
+                max={34}
               />
 
               <Text style={styles.sectionTitle}>Hiển thị trên hóa đơn</Text>
