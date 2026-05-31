@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { Buffer } from 'buffer';
 import * as SunmiPrinterLibrary from '@mitsuharu/react-native-sunmi-printer-library';
+import { captureRef } from 'react-native-view-shot';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal, formatCurrency } from '@/lib/utils';
@@ -444,3 +445,4 @@ export async function printTest(): Promise<void> {
 
   await withTimeout(cutPaper(false), 4000);
 }
+

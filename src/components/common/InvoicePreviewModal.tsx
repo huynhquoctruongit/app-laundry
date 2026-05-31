@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Image,
   Modal,
@@ -11,10 +11,12 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import QRCode from 'react-native-qrcode-svg';
 import { Barcode128 } from '@/components/common/Barcode128';
 import Toast from 'react-native-toast-message';
+import { captureRef } from 'react-native-view-shot';
+import * as SunmiPrinterLibrary from '@mitsuharu/react-native-sunmi-printer-library';
 import { Button } from '@/components/ui/Button';
 import { extractError } from '@/api/client';
 import { PrinterService } from '@/native/printer/PrinterService';
-import { withTimeout } from '@/native/SunmiPrinter';
+import { InvoicePrintView, PRINT_WIDTH_PX } from '@/native/printer/InvoicePrintView';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
@@ -31,20 +33,28 @@ interface Props {
 
 export function InvoicePreviewModal({ visible, onClose, order, settings }: Props) {
   const [printing, setPrinting] = useState(false);
+  const printViewRef = useRef<View>(null);
 
   async function handlePrint() {
     if (!order || !settings) return;
+    if (!PrinterService.isReady()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Chưa kết nối máy in',
+        text2: PrinterService.getError() ?? 'Vào Cài đặt → Máy in để thiết lập',
+      });
+      return;
+    }
     setPrinting(true);
     try {
-      if (!PrinterService.isReady()) {
-        Toast.show({
-          type: 'error',
-          text1: 'Chưa kết nối máy in',
-          text2: PrinterService.getError() ?? 'Vào Cài đặt → Máy in để thiết lập',
-        });
-        return;
-      }
-      await withTimeout(PrinterService.printInvoice(order, settings), 45000);
+      // Capture InvoicePrintView (tiếng Việt đầy đủ) thành base64 PNG
+      const base64 = await captureRef(printViewRef, {
+        format: 'png',
+        quality: 1,
+        result: 'base64',
+      });
+      // Print bitmap — 58mm=384px, 80mm=576px
+      await SunmiPrinterLibrary.printImage(base64, PRINT_WIDTH_PX, 'grayscale');
       Toast.show({ type: 'success', text1: 'Đã gửi đến máy in' });
       onClose();
     } catch (err) {
@@ -75,6 +85,13 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      {/* InvoicePrintView off-screen — dùng để capture bitmap in tiếng Việt */}
+      <View style={{ position: 'absolute', left: -9999, top: -9999, opacity: 0 }}>
+        <View ref={printViewRef} collapsable={false}>
+          <InvoicePrintView order={order} settings={settings} />
+        </View>
+      </View>
+
       <View style={styles.backdrop}>
         <View style={styles.card}>
           {/* Modal header */}

@@ -39,6 +39,7 @@
     "react-native-svg": "14.1.0",
     "react-native-toast-message": "^2.2.0",
     "react-native-vector-icons": "^10.0.3",
+    "react-native-view-shot": "^5.1.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
