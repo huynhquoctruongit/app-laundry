@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  AppState,
   Keyboard,
   Pressable,
   StatusBar,
@@ -64,9 +65,24 @@ export default function App() {
   // Modal hiển thị khi auto-hoàn thành đơn thành công — tự tắt sau 3s
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
 
-  // Auto-detect máy in (Sunmi built-in hoặc BT đã lưu)
+  // Auto-detect máy in khi start + khi app foreground lại
   useEffect(() => {
-    PrinterService.autoDetect().catch(() => {});
+    // Delay nhỏ để BT stack Android khởi động xong trước khi kết nối
+    const timer = setTimeout(() => {
+      PrinterService.autoDetect().catch(() => {});
+    }, 1500);
+
+    // Khi app từ background → foreground: thử reconnect nếu chưa kết nối
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && !PrinterService.isReady()) {
+        PrinterService.autoDetect().catch(() => {});
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      sub.remove();
+    };
   }, []);
 
   // Load trạng thái scanner đã lưu

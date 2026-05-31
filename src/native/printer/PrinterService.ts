@@ -80,19 +80,25 @@ async function tryAutoDetect(): Promise<void> {
     } catch { /* fall through */ }
   }
 
-  // Step 2: BT printer đã lưu từ lần trước → reconnect
+  // Step 2: BT printer đã lưu từ lần trước → reconnect (retry tối đa 3 lần)
   const saved = await loadPrinterConfig();
   if (saved?.type === 'bluetooth' && saved.bt) {
-    const bt = new BTDriver(saved.bt);
-    const ok = await bt.prepare();
-    if (ok) {
-      driver = bt;
-      printerType = 'bluetooth';
-      detectStatus = 'ready';
-      return;
+    let connected = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      // Lần 2+ chờ BT stack Android khởi động xong
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      const bt = new BTDriver(saved.bt);
+      const ok = await bt.prepare();
+      if (ok) {
+        driver = bt;
+        printerType = 'bluetooth';
+        detectStatus = 'ready';
+        connected = true;
+        break;
+      }
+      detectError = bt.getError();
     }
-    // Lưu lại lỗi nhưng vẫn tiếp tục bước 3 (thử tìm lại)
-    detectError = bt.getError();
+    if (connected) return;
   }
 
   // Step 3: Lấy danh sách thiết bị BT đã ghép đôi (fast, không cần discovery).
