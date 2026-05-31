@@ -32,8 +32,7 @@ interface Props {
 
 export function InvoicePreviewModal({ visible, onClose, order, settings }: Props) {
   const [printing, setPrinting] = useState(false);
-  const topRef = useRef<View>(null);
-  const bottomRef = useRef<View>(null);
+  const printRef = useRef<View>(null);
 
   async function handlePrint() {
     if (!order || !settings) return;
@@ -47,12 +46,14 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
     }
     setPrinting(true);
     try {
-      // Capture 2 phần (tiếng Việt) — barcode in bằng lệnh gốc xen giữa cho sắc nét
-      const opts = { format: 'png' as const, quality: 1, result: 'base64' as const };
-      const topB64 = await captureRef(topRef, opts);
-      const bottomB64 = await captureRef(bottomRef, opts);
+      // 1 ảnh duy nhất (tiếng Việt) — barcode in bằng lệnh gốc ở đầu cho sắc nét
+      const fullB64 = await captureRef(printRef, {
+        format: 'png',
+        quality: 1,
+        result: 'base64',
+      });
       const barcodeValue = settings.invoiceShowBarcode ? order.code : null;
-      await PrinterService.printReceiptParts(topB64, barcodeValue, bottomB64);
+      await PrinterService.printReceipt(fullB64, barcodeValue);
       Toast.show({ type: 'success', text1: 'Đã gửi đến máy in' });
       onClose();
     } catch (err) {
@@ -83,14 +84,11 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {/* 2 view off-screen để capture: phần đầu + phần cuối (barcode in gốc xen giữa).
+      {/* View off-screen để capture toàn bộ hoá đơn thành 1 ảnh (barcode in gốc ở đầu).
           KHÔNG dùng opacity:0 (sẽ capture ra ảnh trắng) — chỉ đẩy ra ngoài màn hình. */}
       <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
-        <View ref={topRef} collapsable={false} style={{ backgroundColor: '#fff' }}>
-          <InvoicePrintView order={order} settings={settings} section="top" />
-        </View>
-        <View ref={bottomRef} collapsable={false} style={{ backgroundColor: '#fff' }}>
-          <InvoicePrintView order={order} settings={settings} section="bottom" />
+        <View ref={printRef} collapsable={false} style={{ backgroundColor: '#fff' }}>
+          <InvoicePrintView order={order} settings={settings} />
         </View>
       </View>
 

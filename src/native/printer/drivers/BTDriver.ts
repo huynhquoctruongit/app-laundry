@@ -375,19 +375,12 @@ export class BTDriver implements IPrinterDriver {
     await BluetoothEscposPrinter.cutOnePoint();
   }
 
-  async printReceiptParts(
-    topB64: string,
-    barcodeValue: string | null,
-    bottomB64: string,
-  ): Promise<void> {
+  async printReceipt(fullB64: string, barcodeValue: string | null): Promise<void> {
     await BluetoothEscposPrinter.printerInit();
     await BluetoothEscposPrinter.printerAlign(ALIGN.CENTER);
-    // width: 0 → full width máy (384 cho 58mm / 576 cho 80mm)
-    await BluetoothEscposPrinter.printPic(topB64, { width: 0, left: 0 });
 
-    // Barcode GỐC (sắc nét, đúng từng dot) — dễ quét hơn hẳn so với in dạng ảnh
+    // Barcode GỐC (sắc nét) in TRƯỚC — KHÔNG cắt giữa chừng.
     if (barcodeValue) {
-      await BluetoothEscposPrinter.printerAlign(ALIGN.CENTER);
       await BluetoothEscposPrinter.printBarCode(
         barcodeValue,
         73,   // CODE128
@@ -396,11 +389,9 @@ export class BTDriver implements IPrinterDriver {
         0,    // HRI font
         2,    // HRI dưới mã vạch
       );
-      await BluetoothEscposPrinter.printText('\n', {
-        encoding: 'GBK', codepage: 1, widthtimes: 0, heigthtimes: 0, fonttype: 0,
-      });
     }
 
-    await BluetoothEscposPrinter.printPic(bottomB64, { width: 0, left: 0 });
+    // Toàn bộ phần còn lại là 1 ảnh → chỉ 1 lệnh printPic → 1 tờ liền (printPic tự cắt 1 lần ở cuối)
+    await BluetoothEscposPrinter.printPic(fullB64, { width: 0, left: 0 });
   }
 }

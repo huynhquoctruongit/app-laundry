@@ -27,15 +27,14 @@ function money(v: number) {
 interface Props {
   order: Order;
   settings: ShopSettings;
-  /**
-   * Tách hoá đơn làm 2 ảnh để in barcode GỐC (sắc nét) xen giữa:
-   *  - 'top'    : shop + tiêu đề + mã/ngày  (barcode gốc in NGAY SAU phần này)
-   *  - 'bottom' : khách hàng → footer
-   */
-  section?: 'top' | 'bottom';
 }
 
-export function InvoicePrintView({ order, settings, section = 'top' }: Props) {
+/**
+ * Toàn bộ hoá đơn (tiếng Việt có dấu) dưới dạng 1 ảnh — in bằng 1 lệnh printPic
+ * duy nhất → 1 tờ liền (máy BT tự cắt sau mỗi printPic nên không gọi 2 lần).
+ * Barcode được in RIÊNG bằng lệnh gốc (sắc nét) NÊN KHÔNG nằm trong ảnh này.
+ */
+export function InvoicePrintView({ order, settings }: Props) {
   const date = new Date(order.createdAt);
   const dateStr = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
@@ -45,35 +44,27 @@ export function InvoicePrintView({ order, settings, section = 'top' }: Props) {
     <View style={s.divider} />
   );
 
-  if (section === 'top') {
-    return (
-      <View style={s.paper}>
-        {/* Shop name */}
-        {settings.invoiceShowShopName && (
-          <Text style={s.shopName}>{settings.shopName || BRAND_NAME}</Text>
-        )}
-        {settings.invoiceShowPhone && settings.phone ? (
-          <Text style={s.center}>{settings.phone}</Text>
-        ) : null}
-        {settings.invoiceShowAddress && settings.address ? (
-          <Text style={s.center}>{settings.address}</Text>
-        ) : null}
-
-        <Divider />
-
-        {/* Title */}
-        <Text style={s.title}>HÓA ĐƠN</Text>
-        <Text style={s.center}>{order.code}  {dateStr}</Text>
-        {/* Barcode in bằng lệnh gốc (sắc nét) ngay sau ảnh này */}
-        <View style={{ height: 4 }} />
-      </View>
-    );
-  }
-
-  // section === 'bottom'
   return (
     <View style={s.paper}>
+      {/* Shop name */}
+      {settings.invoiceShowShopName && (
+        <Text style={s.shopName}>{settings.shopName || BRAND_NAME}</Text>
+      )}
+      {settings.invoiceShowPhone && settings.phone ? (
+        <Text style={s.center}>{settings.phone}</Text>
+      ) : null}
+      {settings.invoiceShowAddress && settings.address ? (
+        <Text style={s.center}>{settings.address}</Text>
+      ) : null}
+
       <Divider />
+
+      {/* Title */}
+      <Text style={s.title}>HÓA ĐƠN</Text>
+      <Text style={s.center}>{order.code}  {dateStr}</Text>
+
+      <Divider />
+
       {/* Customer */}
       <Text style={s.sectionLabel}>KHÁCH HÀNG</Text>
       <Text style={[s.customerName, { fontSize: Math.max(20, (settings.customerNameFontSize ?? 22)) }]}>
@@ -151,9 +142,8 @@ export function InvoicePrintView({ order, settings, section = 'top' }: Props) {
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
       <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
-      {/* Khoảng trắng đáy đủ lớn để nhát cắt rơi vào vùng trống,
-          tránh footer bị dính sang đầu tờ kế tiếp (cutter cách đầu in ~12mm) */}
-      <View style={{ height: 120 }} />
+      {/* Chừa vừa đủ để nhát cắt không phạm vào footer (printPic tự feed thêm ~30 dots) */}
+      <View style={{ height: 48 }} />
     </View>
   );
 }
@@ -165,7 +155,8 @@ const s = StyleSheet.create({
     width: PRINT_WIDTH_PX,
     backgroundColor: '#fff',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingTop: 2,
+    paddingBottom: 0,
   },
   divider: {
     height: 1,
