@@ -102,7 +102,12 @@ export function DashboardScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.statLabel}>{s.label}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.statValue}>
+                  <Text
+                    style={[styles.statValue, { flexShrink: 1 }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
                     {dashboardQuery.isLoading
                       ? '—'
                       : s.isCurrency && !showFinancial
@@ -112,7 +117,7 @@ export function DashboardScreen() {
                           : s.value}
                   </Text>
                   {s.isCurrency && (
-                    <Pressable onPress={() => setShowFinancial((v) => !v)}>
+                    <Pressable onPress={() => setShowFinancial((v) => !v)} hitSlop={8}>
                       <Icon name={showFinancial ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
                     </Pressable>
                   )}
