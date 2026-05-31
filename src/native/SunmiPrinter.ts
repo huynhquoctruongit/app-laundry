@@ -95,37 +95,41 @@ async function printCode128(text: string) {
 }
 
 // ─── Line formatting helpers ──────────────────────────────────────────────────
-// 80mm giấy nhiệt Sunmi ở font size 22 ≈ 42 ký tự/dòng
-const LINE_WIDTH = 42;
+// Máy in nhiệt 58mm ở font size 22 ≈ 32 ký tự/dòng
+// LINE_WIDTH phải khớp với số char thực tế để căn cột đúng
+const LINE_WIDTH = 32;
 
 /**
- * In text tiếng Việt bằng cách gửi UTF-8 bytes trực tiếp — bypass encoding của AIDL.
- * Máy in Sunmi hỗ trợ UTF-8 ở firmware level.
+ * Bỏ dấu tiếng Việt → ASCII thuần để đảm bảo 1 char = 1 byte = 1 cột in.
+ * Máy in nhiệt không hỗ trợ UTF-8 multi-byte → bắt buộc dùng ASCII.
  */
-async function printVN(text: string) {
-  const bytes = Array.from(Buffer.from(text, 'utf-8'));
-  await sendRaw(bytes);
+function removeAccents(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
 }
 
-// Đếm độ dài hiển thị — chữ tiếng Việt NFC chiếm 1 cột
-function vlen(s: string): number {
-  return [...s.normalize('NFC')].length;
+/** In text — tự bỏ dấu để alignment cột luôn chính xác */
+async function printVN(text: string) {
+  await SunmiPrinterLibrary.printText(removeAccents(text));
 }
 
 function twoCol(left: string, right: string, width = LINE_WIDTH): string {
-  const l = String(left).normalize('NFC');
-  const r = String(right).normalize('NFC');
-  const pad = Math.max(1, width - vlen(l) - vlen(r));
+  const l = removeAccents(String(left));
+  const r = removeAccents(String(right));
+  const pad = Math.max(1, width - l.length - r.length);
   return l + ' '.repeat(pad) + r;
 }
 
-function threeCol(a: string, b: string, c: string, widths: [number, number, number] = [22, 7, 13]): string {
-  const na = a.normalize('NFC');
-  const nb = b.normalize('NFC');
-  const nc = c.normalize('NFC');
-  const padR = (s: string, w: number) => (vlen(s) >= w ? s.slice(0, w) : s + ' '.repeat(w - vlen(s)));
-  const padL = (s: string, w: number) => (vlen(s) >= w ? s.slice(0, w) : ' '.repeat(w - vlen(s)) + s);
-  return padR(na, widths[0]) + padL(nb, widths[1]) + padL(nc, widths[2]);
+function threeCol(a: string, b: string, c: string, widths: [number, number, number] = [16, 6, 10]): string {
+  const ra = removeAccents(a);
+  const rb = removeAccents(b);
+  const rc = removeAccents(c);
+  const padR = (s: string, w: number) => (s.length >= w ? s.slice(0, w) : s + ' '.repeat(w - s.length));
+  const padL = (s: string, w: number) => (s.length >= w ? s.slice(0, w) : ' '.repeat(w - s.length) + s);
+  return padR(ra, widths[0]) + padL(rb, widths[1]) + padL(rc, widths[2]);
 }
 
 // Số tiền cho in nhiệt
@@ -277,8 +281,8 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       const it = order.items[i];
       const sl = it.weight ? `${it.quantity}(${it.weight}kg)` : `${it.quantity}`;
       const subtotal = calcLineTotal(it);
-      const nameLine = `${i + 1}.${it.name}`.normalize('NFC');
-      if (vlen(nameLine) <= 22) {
+      const nameLine = removeAccents(`${i + 1}.${it.name}`);
+      if (nameLine.length <= 16) {
         await printVN(threeCol(nameLine, sl, printMoney(subtotal)) + '\n');
       } else {
         await printVN(nameLine + '\n');
