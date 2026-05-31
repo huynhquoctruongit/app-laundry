@@ -126,14 +126,16 @@ export function InvoicePrintView({ order, settings }: Props) {
         <Text style={[s.totalValue, s.bold, s.big]}>{money(grandTotal)}</Text>
       </View>
 
-      {/* QR section */}
+      {/* QR section — CTA nổi bật để khách đặt giao nhận tại nhà */}
       {settings.invoiceShowQR && order.qr?.url && (
         <>
-          <Divider />
-          <Text style={[s.center, s.bold]}>GIAO NHẬN ĐỒ TẠI NHÀ</Text>
-          <Text style={s.center}>Quét mã QR để đặt đơn</Text>
-          <View style={s.codeBox}>
-            <QRCode value={order.qr.url} size={150} color="#000" backgroundColor="#fff" />
+          <View style={{ height: 6 }} />
+          <View style={s.qrCta}>
+            <Text style={s.qrTitle}>GIAO NHẬN ĐỒ TẬN NHÀ</Text>
+            <Text style={s.qrSubtitle}>Quét mã QR để đặt đơn — miễn phí tới tận nơi</Text>
+            <View style={s.qrBox}>
+              <QRCode value={order.qr.url} size={210} color="#000" backgroundColor="#fff" />
+            </View>
           </View>
         </>
       )}
@@ -161,6 +163,37 @@ const s = StyleSheet.create({
   },
   center: { textAlign: 'center', fontSize: FONT, color: '#000' },
   codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 6 },
+  qrCta: {
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#000',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginVertical: 4,
+  },
+  qrTitle: {
+    fontSize: FONT + 9,
+    fontWeight: '900',
+    color: '#000',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  qrSubtitle: {
+    fontSize: FONT,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+    marginTop: 3,
+    marginBottom: 8,
+  },
+  qrBox: {
+    backgroundColor: '#fff',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
   title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 2 },
   sectionLabel: { textAlign: 'center', fontSize: FONT - 1, color: '#333', marginBottom: 2 },
