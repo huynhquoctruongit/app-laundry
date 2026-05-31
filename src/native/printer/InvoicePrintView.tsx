@@ -141,8 +141,13 @@ export function InvoicePrintView({ order, settings }: Props) {
       )}
 
       <Divider />
-      <Text style={s.center}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
-      <View style={{ height: 16 }} />
+      {settings.openingHours ? (
+        <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
+      ) : null}
+      <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
+      {/* Khoảng trắng đáy đủ lớn để nhát cắt rơi vào vùng trống,
+          tránh footer bị dính sang đầu tờ kế tiếp (cutter cách đầu in ~12mm) */}
+      <View style={{ height: 120 }} />
     </View>
   );
 }
