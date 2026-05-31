@@ -65,6 +65,10 @@ export function CustomersScreen() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Đã cập nhật khách hàng' });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      // Refresh các đơn/QR vì hiển thị thông tin khách theo thời gian thực
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order'] });
+      queryClient.invalidateQueries({ queryKey: ['booking'] });
       closeForm();
     },
     onError: (err) =>
