@@ -12,7 +12,7 @@ import { orderApi } from '@/api/order.api';
 import { settingsApi } from '@/api/settings.api';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
-import { NEXT_STATUS_TRANSITIONS, ORDER_STATUS_LABEL, STATUS_ACTION_LABEL, type OrderStatus } from '@/helpers/enums/order-status';
+import { NEXT_STATUS_TRANSITIONS, ORDER_STATUS_LABEL, type OrderStatus } from '@/helpers/enums/order-status';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
 import { calcLineTotal, formatCurrency, formatDateTime } from '@/lib/utils';
@@ -99,13 +99,18 @@ export function OrderDetailScreen() {
   }
 
   const order = orderQuery.data;
-  const nextStatuses = NEXT_STATUS_TRANSITIONS[order.status as OrderStatus] ?? [];
+  // Admin: đổi sang BẤT KỲ trạng thái nào (trừ trạng thái hiện tại).
+  // Nhân viên: theo luồng cho phép.
+  const allStatuses = Object.keys(ORDER_STATUS_LABEL) as OrderStatus[];
+  const statusOptions: OrderStatus[] = canChangeStatus
+    ? allStatuses.filter((s) => s !== order.status)
+    : NEXT_STATUS_TRANSITIONS[order.status as OrderStatus] ?? [];
   const discount = Number(order.discountAmount ?? 0);
   const remaining = Number(order.totalAmount) - discount;
 
   const hasFooter =
     (!canChangeStatus && canCompleteOrder && order.status === 'READY') ||
-    (canChangeStatus && nextStatuses.length > 0);
+    (canChangeStatus && statusOptions.length > 0);
 
   return (
     <View style={styles.container}>
@@ -245,19 +250,24 @@ export function OrderDetailScreen() {
             Hoàn thành — Đã giao cho khách
           </Button>
         )}
-        {canChangeStatus && nextStatuses.length > 0 && (
-          <View style={{ gap: spacing.sm }}>
-            {nextStatuses.map((s) => (
-              <Button
-                key={s}
-                variant={s === 'CANCELLED' ? 'outline' : 'default'}
-                onPress={() => statusMutation.mutate(s)}
-                loading={statusMutation.isPending}
-                fullWidth
-              >
-                {STATUS_ACTION_LABEL[s] ?? `Chuyển sang: ${ORDER_STATUS_LABEL[s]}`}
-              </Button>
-            ))}
+        {canChangeStatus && statusOptions.length > 0 && (
+          <View style={{ gap: spacing.xs }}>
+            <Text style={{ fontSize: 12, color: colors.textMuted, fontWeight: '600' }}>
+              Đổi trạng thái sang:
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {statusOptions.map((s) => (
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={s === 'CANCELLED' ? 'outline' : 'default'}
+                  onPress={() => statusMutation.mutate(s)}
+                  loading={statusMutation.isPending}
+                >
+                  {ORDER_STATUS_LABEL[s]}
+                </Button>
+              ))}
+            </View>
           </View>
         )}
       </View>
