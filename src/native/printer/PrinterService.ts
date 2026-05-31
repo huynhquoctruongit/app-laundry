@@ -223,13 +223,13 @@ export const PrinterService = {
     return driver.printTest();
   },
 
-  /** In hoá đơn (barcode gốc + 1 ảnh tiếng Việt). Tự route Sunmi/BT. */
-  async printReceipt(fullB64: string, barcodeValue: string | null): Promise<void> {
+  /** In hoá đơn (1 ảnh duy nhất, gồm cả barcode → 1 tờ liền). Tự route Sunmi/BT. */
+  async printReceipt(fullB64: string): Promise<void> {
     if (!driver) throw new Error('Chưa kết nối máy in');
     if (!driver.isAvailable()) {
       const ok = await driver.prepare();
       if (!ok) throw new Error(driver.getError() ?? 'Không kết nối được máy in');
     }
-    return driver.printReceipt(fullB64, barcodeValue);
+    return driver.printReceipt(fullB64);
   },
 };

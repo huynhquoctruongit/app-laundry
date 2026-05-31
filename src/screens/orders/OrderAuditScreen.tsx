@@ -23,7 +23,7 @@ import {
 } from '@/native/scanner-bridge';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, matchScannedOrder, orderCodeSuffix } from '@/lib/utils';
 import type { Order } from '@/types/api';
 
 type BagState = 'pending' | 'verified' | 'anomaly';
@@ -57,6 +57,9 @@ export function OrderAuditScreen() {
 
   const [auditMap, setAuditMap] = useState<Map<string, AuditEntry>>(new Map());
   const [lastScanned, setLastScanned] = useState<string | null>(null);
+  // Ref để handleScan đọc map mới nhất (tránh stale closure do useCallback [])
+  const auditMapRef = useRef(auditMap);
+  useEffect(() => { auditMapRef.current = auditMap; }, [auditMap]);
 
   // Khởi tạo map khi data về
   useEffect(() => {
@@ -84,36 +87,39 @@ export function OrderAuditScreen() {
 
   // Handler xử lý 1 scan — KHÔNG hoàn thành đơn, chỉ check
   const handleScan = useCallback(
-    async (code: string) => {
-      if (!code || code.length < 2) return;
+    async (scanned: string) => {
+      const code = scanned.trim();
+      if (code.length < 2) return;
 
-      setAuditMap((prev) => {
-        const existing = prev.get(code);
-        // Có trong list READY → tô xanh
-        if (existing && existing.state === 'pending') {
-          const next = new Map(prev);
-          next.set(code, { ...existing, state: 'verified', scannedAt: Date.now() });
-          return next;
+      // Mã quét có thể là mã đầy đủ (bag cũ) HOẶC đuôi mã (bag mới) → resolve về
+      // key đầy đủ trong danh sách bịch trên kệ.
+      const v = code.toUpperCase();
+      let matchedKey: string | null = null;
+      for (const k of auditMapRef.current.keys()) {
+        if (k.toUpperCase() === v || orderCodeSuffix(k).toUpperCase() === v) {
+          matchedKey = k;
+          break;
         }
-        // Đã quét rồi → highlight lại để user thấy
-        if (existing && existing.state === 'verified') {
-          const next = new Map(prev);
-          next.set(code, { ...existing, scannedAt: Date.now() });
-          return next;
-        }
-        return prev;
-      });
-      setLastScanned(code);
-
-      // Nếu đã có trong list READY thì không cần API call thêm
-      if (auditMap.get(code)?.state === 'pending' || auditMap.get(code)?.state === 'verified') {
-        return;
       }
 
-      // Không có trong list — query API xem trạng thái thực
+      if (matchedKey) {
+        const key = matchedKey;
+        setAuditMap((prev) => {
+          const e = prev.get(key);
+          if (!e || e.state === 'anomaly') return prev;
+          const next = new Map(prev);
+          next.set(key, { ...e, state: 'verified', scannedAt: Date.now() });
+          return next;
+        });
+        setLastScanned(key);
+        return; // có trong danh sách → tô xanh xong, khỏi gọi API
+      }
+
+      setLastScanned(code);
+      // Không có trong danh sách — tra cứu trạng thái thực
       try {
         const result = await orderApi.list({ search: code, pageSize: 5 });
-        const found = result.items.find((o) => o.code === code);
+        const found = matchScannedOrder(result.items, code);
         if (!found) {
           Toast.show({ type: 'error', text1: 'Không tìm thấy đơn', text2: code });
           return;
@@ -122,13 +128,11 @@ export function OrderAuditScreen() {
           // Anomaly: hệ thống đã ghi giao nhưng đồ vẫn ở kệ
           setAuditMap((prev) => {
             const next = new Map(prev);
-            next.set(code, {
-              order: found,
-              state: 'anomaly',
-              scannedAt: Date.now(),
-            });
+            next.set(found.code, { order: found, state: 'anomaly', scannedAt: Date.now() });
             return next;
           });
+          setLastScanned(found.code);
+          Toast.show({ type: 'info', text1: 'Bất thường: đơn đã giao nhưng còn trên kệ', text2: found.code });
           return;
         }
         if (found.status === 'CANCELLED') {

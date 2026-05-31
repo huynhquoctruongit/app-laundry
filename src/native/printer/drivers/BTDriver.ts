@@ -375,23 +375,10 @@ export class BTDriver implements IPrinterDriver {
     await BluetoothEscposPrinter.cutOnePoint();
   }
 
-  async printReceipt(fullB64: string, barcodeValue: string | null): Promise<void> {
+  async printReceipt(fullB64: string): Promise<void> {
     await BluetoothEscposPrinter.printerInit();
     await BluetoothEscposPrinter.printerAlign(ALIGN.CENTER);
-
-    // Barcode GỐC (sắc nét) in TRƯỚC — KHÔNG cắt giữa chừng.
-    if (barcodeValue) {
-      await BluetoothEscposPrinter.printBarCode(
-        barcodeValue,
-        73,   // CODE128
-        2,    // module width (2 dots)
-        80,   // height
-        0,    // HRI font
-        2,    // HRI dưới mã vạch
-      );
-    }
-
-    // Toàn bộ phần còn lại là 1 ảnh → chỉ 1 lệnh printPic → 1 tờ liền (printPic tự cắt 1 lần ở cuối)
+    // CHỈ 1 lệnh in ảnh (đã gồm barcode) → 1 tờ liền, không thể bị tách.
     await BluetoothEscposPrinter.printPic(fullB64, { width: 0, left: 0 });
   }
 }

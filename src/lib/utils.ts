@@ -76,3 +76,24 @@ export function debounce<T extends (...args: any[]) => void>(
     timer = setTimeout(() => fn(...args), delay);
   };
 }
+
+/** Đuôi mã đơn (phần sau dấu '-' cuối). VD "LD-20260531-FSRNX" → "FSRNX". */
+export function orderCodeSuffix(code: string): string {
+  const parts = code.split('-');
+  return parts[parts.length - 1] || code;
+}
+
+/**
+ * Tìm đơn theo giá trị quét được — tương thích cả barcode mã đầy đủ (bag cũ)
+ * lẫn barcode chỉ chứa đuôi mã (bag mới, ngắn để dễ quét).
+ */
+export function matchScannedOrder<T extends { code: string }>(
+  items: T[],
+  scanned: string,
+): T | null {
+  const v = scanned.trim().toUpperCase();
+  if (!v) return null;
+  const exact = items.find((o) => o.code.toUpperCase() === v);
+  if (exact) return exact;
+  return items.find((o) => orderCodeSuffix(o.code).toUpperCase() === v) ?? null;
+}

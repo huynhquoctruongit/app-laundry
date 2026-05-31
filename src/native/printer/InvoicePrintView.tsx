@@ -9,9 +9,10 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
-import { calcLineTotal } from '@/lib/utils';
+import { calcLineTotal, orderCodeSuffix } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
 
 // Giấy 58mm → 384px. Giấy 80mm → 576px. Scale để font đủ lớn khi in.
@@ -67,6 +68,14 @@ export function InvoicePrintView({ order, settings }: Props) {
       {/* Title */}
       <Text style={s.title}>HÓA ĐƠN</Text>
       <Text style={s.center}>{order.code}  {dateStr}</Text>
+
+      {/* Barcode mã hoá ĐUÔI mã đơn (ngắn → vạch to → quét nhạy); in trong ảnh
+          nên KHÔNG bị tách tờ. Mã đầy đủ vẫn in dạng chữ ở dòng trên. */}
+      {settings.invoiceShowBarcode && (
+        <View style={s.codeBox}>
+          <Barcode128 value={orderCodeSuffix(order.code)} width={300} height={90} quietZone={18} />
+        </View>
+      )}
 
       <Divider />
 

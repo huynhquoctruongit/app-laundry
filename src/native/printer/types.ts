@@ -21,10 +21,8 @@ export interface IPrinterDriver {
   printLabel(order: Order, settings: ShopSettings): Promise<void>;
   printTest(): Promise<void>;
   /**
-   * In hoá đơn: barcode GỐC (sắc nét) ở đầu + toàn bộ phần còn lại là 1 ảnh
-   * bitmap tiếng Việt có dấu. Chỉ 1 lệnh in ảnh → 1 tờ liền (không bị cắt giữa).
-   *  - fullB64: ảnh toàn bộ hoá đơn (KHÔNG gồm barcode)
-   *  - barcodeValue: mã để in barcode gốc (null = không in)
+   * In hoá đơn dưới dạng 1 ảnh bitmap DUY NHẤT (gồm cả barcode) → 1 lệnh in,
+   * 1 tờ liền, KHÔNG thể bị tách. fullB64 = ảnh toàn bộ hoá đơn.
    */
-  printReceipt(fullB64: string, barcodeValue: string | null): Promise<void>;
+  printReceipt(fullB64: string): Promise<void>;
 }

@@ -52,8 +52,7 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
         quality: 1,
         result: 'base64',
       });
-      const barcodeValue = settings.invoiceShowBarcode ? order.code : null;
-      await PrinterService.printReceipt(fullB64, barcodeValue);
+      await PrinterService.printReceipt(fullB64);
       Toast.show({ type: 'success', text1: 'Đã gửi đến máy in' });
       onClose();
     } catch (err) {

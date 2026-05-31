@@ -44,7 +44,7 @@ export class SunmiDriver implements IPrinterDriver {
     return printTest();
   }
 
-  async printReceipt(fullB64: string, barcodeValue: string | null): Promise<void> {
-    return printReceiptSunmi(fullB64, barcodeValue);
+  async printReceipt(fullB64: string): Promise<void> {
+    return printReceiptSunmi(fullB64);
   }
 }

@@ -28,6 +28,7 @@ import { BarcodeOrderModal } from '@/components/common/BarcodeOrderModal';
 import { BarcodeSuccessModal } from '@/components/common/BarcodeSuccessModal';
 import { orderApi } from '@/api/order.api';
 import { extractError } from '@/api/client';
+import { matchScannedOrder } from '@/lib/utils';
 import { colors } from '@/theme/colors';
 import type { Order } from '@/types/api';
 
@@ -125,7 +126,7 @@ export default function App() {
     let order: Order | null = null;
     try {
       const result = await orderApi.list({ search: trimmed, pageSize: 10 });
-      order = result.items.find((o) => o.code === trimmed) ?? null;
+      order = matchScannedOrder(result.items, trimmed);
     } catch (err) {
       Toast.show({
         type: 'error',
