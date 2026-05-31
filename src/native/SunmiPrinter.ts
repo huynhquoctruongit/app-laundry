@@ -447,10 +447,14 @@ export async function printTest(): Promise<void> {
 }
 
 /**
- * In ảnh bitmap (base64 PNG) ở FULL WIDTH của giấy.
+ * In hoá đơn: ảnh đầu (tiếng Việt) → barcode GỐC sắc nét → ảnh cuối (tiếng Việt) → cắt.
  * Tự dò khổ giấy 58mm (384 dots) hay 80mm (576 dots).
  */
-export async function printImageFullWidth(base64: string): Promise<void> {
+export async function printReceiptPartsSunmi(
+  topB64: string,
+  barcodeValue: string | null,
+  bottomB64: string,
+): Promise<void> {
   if (!isPrinterAvailable()) {
     const ok = await preparePrinter();
     if (!ok) throw new Error('Máy in Sunmi không khả dụng');
@@ -462,10 +466,17 @@ export async function printImageFullWidth(base64: string): Promise<void> {
   } catch {
     /* mặc định 58mm */
   }
-  await withTimeout(
-    SunmiPrinterLibrary.printImage(base64, pixelWidth, 'grayscale'),
-    20000,
-  );
+
+  await withTimeout(SunmiPrinterLibrary.printImage(topB64, pixelWidth, 'grayscale'), 20000);
+
+  if (barcodeValue) {
+    await SunmiPrinterLibrary.setAlignment('center');
+    await printCode128(barcodeValue);
+    await SunmiPrinterLibrary.lineWrap(1);
+  }
+
+  await withTimeout(SunmiPrinterLibrary.printImage(bottomB64, pixelWidth, 'grayscale'), 20000);
+  await SunmiPrinterLibrary.lineWrap(1);
   await withTimeout(cutPaper(false), 4000);
 }
 

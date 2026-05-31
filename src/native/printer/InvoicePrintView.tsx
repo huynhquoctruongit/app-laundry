@@ -9,7 +9,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal } from '@/lib/utils';
@@ -28,9 +27,15 @@ function money(v: number) {
 interface Props {
   order: Order;
   settings: ShopSettings;
+  /**
+   * Tách hoá đơn làm 2 ảnh để in barcode GỐC (sắc nét) xen giữa:
+   *  - 'top'    : shop + tiêu đề + mã/ngày  (barcode gốc in NGAY SAU phần này)
+   *  - 'bottom' : khách hàng → footer
+   */
+  section?: 'top' | 'bottom';
 }
 
-export function InvoicePrintView({ order, settings }: Props) {
+export function InvoicePrintView({ order, settings, section = 'top' }: Props) {
   const date = new Date(order.createdAt);
   const dateStr = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
@@ -40,34 +45,35 @@ export function InvoicePrintView({ order, settings }: Props) {
     <View style={s.divider} />
   );
 
+  if (section === 'top') {
+    return (
+      <View style={s.paper}>
+        {/* Shop name */}
+        {settings.invoiceShowShopName && (
+          <Text style={s.shopName}>{settings.shopName || BRAND_NAME}</Text>
+        )}
+        {settings.invoiceShowPhone && settings.phone ? (
+          <Text style={s.center}>{settings.phone}</Text>
+        ) : null}
+        {settings.invoiceShowAddress && settings.address ? (
+          <Text style={s.center}>{settings.address}</Text>
+        ) : null}
+
+        <Divider />
+
+        {/* Title */}
+        <Text style={s.title}>HÓA ĐƠN</Text>
+        <Text style={s.center}>{order.code}  {dateStr}</Text>
+        {/* Barcode in bằng lệnh gốc (sắc nét) ngay sau ảnh này */}
+        <View style={{ height: 4 }} />
+      </View>
+    );
+  }
+
+  // section === 'bottom'
   return (
     <View style={s.paper}>
-      {/* Shop name */}
-      {settings.invoiceShowShopName && (
-        <Text style={s.shopName}>{settings.shopName || BRAND_NAME}</Text>
-      )}
-      {settings.invoiceShowPhone && settings.phone ? (
-        <Text style={s.center}>{settings.phone}</Text>
-      ) : null}
-      {settings.invoiceShowAddress && settings.address ? (
-        <Text style={s.center}>{settings.address}</Text>
-      ) : null}
-
       <Divider />
-
-      {/* Title */}
-      <Text style={s.title}>HÓA ĐƠN</Text>
-      <Text style={s.center}>{order.code}  {dateStr}</Text>
-
-      {/* Barcode (mã vạch để staff quét) */}
-      {settings.invoiceShowBarcode && (
-        <View style={s.codeBox}>
-          <Barcode128 value={order.code} width={340} height={58} />
-        </View>
-      )}
-
-      <Divider />
-
       {/* Customer */}
       <Text style={s.sectionLabel}>KHÁCH HÀNG</Text>
       <Text style={[s.customerName, { fontSize: Math.max(20, (settings.customerNameFontSize ?? 22)) }]}>

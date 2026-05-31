@@ -20,6 +20,15 @@ export interface IPrinterDriver {
   printInvoice(order: Order, settings: ShopSettings): Promise<void>;
   printLabel(order: Order, settings: ShopSettings): Promise<void>;
   printTest(): Promise<void>;
-  /** In ảnh bitmap (base64 PNG) ở full width của giấy — dùng để in tiếng Việt có dấu */
-  printImageBase64(base64: string): Promise<void>;
+  /**
+   * In hoá đơn dạng 2 ảnh bitmap (tiếng Việt có dấu) + barcode GỐC xen giữa (sắc nét).
+   *  - topB64: ảnh phần đầu (shop + tiêu đề + mã/ngày)
+   *  - barcodeValue: mã để in barcode gốc (null = không in)
+   *  - bottomB64: ảnh phần còn lại (khách → footer)
+   */
+  printReceiptParts(
+    topB64: string,
+    barcodeValue: string | null,
+    bottomB64: string,
+  ): Promise<void>;
 }
