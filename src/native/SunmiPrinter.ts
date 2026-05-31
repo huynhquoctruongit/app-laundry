@@ -446,3 +446,26 @@ export async function printTest(): Promise<void> {
   await withTimeout(cutPaper(false), 4000);
 }
 
+/**
+ * In ảnh bitmap (base64 PNG) ở FULL WIDTH của giấy.
+ * Tự dò khổ giấy 58mm (384 dots) hay 80mm (576 dots).
+ */
+export async function printImageFullWidth(base64: string): Promise<void> {
+  if (!isPrinterAvailable()) {
+    const ok = await preparePrinter();
+    if (!ok) throw new Error('Máy in Sunmi không khả dụng');
+  }
+  let pixelWidth = 384;
+  try {
+    const info = await SunmiPrinterLibrary.getPrinterInfo();
+    if (info?.paperWidth === '80mm') pixelWidth = 576;
+  } catch {
+    /* mặc định 58mm */
+  }
+  await withTimeout(
+    SunmiPrinterLibrary.printImage(base64, pixelWidth, 'grayscale'),
+    20000,
+  );
+  await withTimeout(cutPaper(false), 4000);
+}
+

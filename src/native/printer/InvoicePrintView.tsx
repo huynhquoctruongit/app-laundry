@@ -8,6 +8,8 @@
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal } from '@/lib/utils';
@@ -56,6 +58,13 @@ export function InvoicePrintView({ order, settings }: Props) {
       {/* Title */}
       <Text style={s.title}>HÓA ĐƠN</Text>
       <Text style={s.center}>{order.code}  {dateStr}</Text>
+
+      {/* Barcode (mã vạch để staff quét) */}
+      {settings.invoiceShowBarcode && (
+        <View style={s.codeBox}>
+          <Barcode128 value={order.code} width={340} height={58} />
+        </View>
+      )}
 
       <Divider />
 
@@ -118,11 +127,14 @@ export function InvoicePrintView({ order, settings }: Props) {
       </View>
 
       {/* QR section */}
-      {settings.invoiceShowQR && (
+      {settings.invoiceShowQR && order.qr?.url && (
         <>
           <Divider />
           <Text style={[s.center, s.bold]}>GIAO NHẬN ĐỒ TẠI NHÀ</Text>
           <Text style={s.center}>Quét mã QR để đặt đơn</Text>
+          <View style={s.codeBox}>
+            <QRCode value={order.qr.url} size={150} color="#000" backgroundColor="#fff" />
+          </View>
         </>
       )}
 
@@ -148,6 +160,7 @@ const s = StyleSheet.create({
     marginVertical: 6,
   },
   center: { textAlign: 'center', fontSize: FONT, color: '#000' },
+  codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 6 },
   shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
   title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 2 },
   sectionLabel: { textAlign: 'center', fontSize: FONT - 1, color: '#333', marginBottom: 2 },

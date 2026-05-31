@@ -222,4 +222,14 @@ export const PrinterService = {
     }
     return driver.printTest();
   },
+
+  /** In ảnh bitmap full-width — dùng cho hoá đơn tiếng Việt có dấu. Tự route Sunmi/BT. */
+  async printImageBase64(base64: string): Promise<void> {
+    if (!driver) throw new Error('Chưa kết nối máy in');
+    if (!driver.isAvailable()) {
+      const ok = await driver.prepare();
+      if (!ok) throw new Error(driver.getError() ?? 'Không kết nối được máy in');
+    }
+    return driver.printImageBase64(base64);
+  },
 };

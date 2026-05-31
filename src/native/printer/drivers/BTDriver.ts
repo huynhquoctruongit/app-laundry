@@ -374,4 +374,15 @@ export class BTDriver implements IPrinterDriver {
     });
     await BluetoothEscposPrinter.cutOnePoint();
   }
+
+  async printImageBase64(base64: string): Promise<void> {
+    await BluetoothEscposPrinter.printerInit();
+    await BluetoothEscposPrinter.printerAlign(ALIGN.CENTER);
+    // width: 0 → tự dùng full width của máy (deviceWidth: 384 cho 58mm / 576 cho 80mm)
+    await BluetoothEscposPrinter.printPic(base64, { width: 0, left: 0 });
+    await BluetoothEscposPrinter.printText('\n\n\n', {
+      encoding: 'GBK', codepage: 1, widthtimes: 0, heigthtimes: 0, fonttype: 0,
+    });
+    await BluetoothEscposPrinter.cutOnePoint();
+  }
 }

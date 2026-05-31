@@ -12,11 +12,10 @@ import QRCode from 'react-native-qrcode-svg';
 import { Barcode128 } from '@/components/common/Barcode128';
 import Toast from 'react-native-toast-message';
 import { captureRef } from 'react-native-view-shot';
-import * as SunmiPrinterLibrary from '@mitsuharu/react-native-sunmi-printer-library';
 import { Button } from '@/components/ui/Button';
 import { extractError } from '@/api/client';
 import { PrinterService } from '@/native/printer/PrinterService';
-import { InvoicePrintView, PRINT_WIDTH_PX } from '@/native/printer/InvoicePrintView';
+import { InvoicePrintView } from '@/native/printer/InvoicePrintView';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
@@ -53,8 +52,8 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
         quality: 1,
         result: 'base64',
       });
-      // Print bitmap — 58mm=384px, 80mm=576px
-      await SunmiPrinterLibrary.printImage(base64, PRINT_WIDTH_PX, 'grayscale');
+      // Route qua PrinterService → in full-width trên cả Sunmi lẫn Bluetooth
+      await PrinterService.printImageBase64(base64);
       Toast.show({ type: 'success', text1: 'Đã gửi đến máy in' });
       onClose();
     } catch (err) {
@@ -85,9 +84,10 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      {/* InvoicePrintView off-screen — dùng để capture bitmap in tiếng Việt */}
-      <View style={{ position: 'absolute', left: -9999, top: -9999, opacity: 0 }}>
-        <View ref={printViewRef} collapsable={false}>
+      {/* InvoicePrintView off-screen — dùng để capture bitmap in tiếng Việt.
+          KHÔNG dùng opacity:0 (sẽ capture ra ảnh trắng) — chỉ đẩy ra ngoài màn hình. */}
+      <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
+        <View ref={printViewRef} collapsable={false} style={{ backgroundColor: '#fff' }}>
           <InvoicePrintView order={order} settings={settings} />
         </View>
       </View>

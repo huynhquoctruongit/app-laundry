@@ -20,4 +20,6 @@ export interface IPrinterDriver {
   printInvoice(order: Order, settings: ShopSettings): Promise<void>;
   printLabel(order: Order, settings: ShopSettings): Promise<void>;
   printTest(): Promise<void>;
+  /** In ảnh bitmap (base64 PNG) ở full width của giấy — dùng để in tiếng Việt có dấu */
+  printImageBase64(base64: string): Promise<void>;
 }

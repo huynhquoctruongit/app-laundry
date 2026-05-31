@@ -11,6 +11,7 @@ import {
   printInvoice,
   printLabel,
   printTest,
+  printImageFullWidth,
 } from '../../SunmiPrinter';
 import type { Order, ShopSettings } from '@/types/api';
 
@@ -41,5 +42,9 @@ export class SunmiDriver implements IPrinterDriver {
 
   async printTest(): Promise<void> {
     return printTest();
+  }
+
+  async printImageBase64(base64: string): Promise<void> {
+    return printImageFullWidth(base64);
   }
 }
