@@ -33,7 +33,7 @@ export interface User {
 export interface Customer {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   address?: string | null;
   note?: string | null;
   createdAt: string;

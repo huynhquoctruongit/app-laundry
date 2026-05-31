@@ -571,8 +571,7 @@ export function OrderCreateScreen() {
             <Text style={styles.modalTitle}>Thêm khách hàng nhanh</Text>
             <Input label="Tên" required value={qaName} onChangeText={setQaName} />
             <Input
-              label="Số điện thoại"
-              required
+              label="Số điện thoại (không bắt buộc)"
               value={qaPhone}
               onChangeText={setQaPhone}
               keyboardType="phone-pad"
@@ -584,8 +583,8 @@ export function OrderCreateScreen() {
               </Button>
               <Button
                 onPress={() => {
-                  if (!qaName.trim() || !qaPhone.trim()) {
-                    Toast.show({ type: 'error', text1: 'Vui lòng nhập tên và SĐT' });
+                  if (!qaName.trim()) {
+                    Toast.show({ type: 'error', text1: 'Vui lòng nhập tên khách hàng' });
                     return;
                   }
                   createCustomerMutation.mutate();

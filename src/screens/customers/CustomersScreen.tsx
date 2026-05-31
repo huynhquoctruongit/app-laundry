@@ -93,7 +93,7 @@ export function CustomersScreen() {
   function openEdit(c: Customer) {
     setEditing(c);
     setName(c.name);
-    setPhone(c.phone);
+    setPhone(c.phone ?? '');
     setAddress(c.address ?? '');
     setNote(c.note ?? '');
     setFormOpen(true);
@@ -116,8 +116,8 @@ export function CustomersScreen() {
   }
 
   function handleSubmit() {
-    if (!name.trim() || !phone.trim()) {
-      Toast.show({ type: 'error', text1: 'Vui lòng nhập tên và SĐT' });
+    if (!name.trim()) {
+      Toast.show({ type: 'error', text1: 'Vui lòng nhập tên khách hàng' });
       return;
     }
     if (editing) updateMutation.mutate();
@@ -213,8 +213,7 @@ export function CustomersScreen() {
               <View style={{ gap: spacing.md }}>
                 <Input label="Tên" required value={name} onChangeText={setName} placeholder="Nguyễn Văn A" />
                 <Input
-                  label="Số điện thoại"
-                  required
+                  label="Số điện thoại (không bắt buộc)"
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="0901234567"
