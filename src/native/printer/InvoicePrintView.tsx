@@ -156,8 +156,8 @@ export function InvoicePrintView({ order, settings }: Props) {
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
       <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
-      {/* Chừa vừa đủ để nhát cắt không phạm vào footer (printPic tự feed thêm ~30 dots) */}
-      <View style={{ height: 48 }} />
+      {/* Chừa đủ để nhát cắt không phạm vào dòng "Cảm ơn" (khe dao ~ lề này) */}
+      <View style={{ height: 64 }} />
     </View>
   );
 }
@@ -175,7 +175,7 @@ function makeStyles(FONT: number) {
       width: PRINT_WIDTH_PX,
       backgroundColor: '#fff',
       paddingHorizontal: 12,
-      paddingTop: 2,
+      paddingTop: 0,
       paddingBottom: 0,
     },
     divider: {

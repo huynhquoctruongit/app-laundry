@@ -376,9 +376,8 @@ export class BTDriver implements IPrinterDriver {
   }
 
   async printReceipt(fullB64: string): Promise<void> {
-    await BluetoothEscposPrinter.printerInit();
-    await BluetoothEscposPrinter.printerAlign(ALIGN.CENTER);
     // CHỈ 1 lệnh in ảnh (đã gồm barcode) → 1 tờ liền, không thể bị tách.
+    // printPic tự ESC_Init nên KHÔNG gọi printerInit/align thừa (đỡ dư lề trên).
     await BluetoothEscposPrinter.printPic(fullB64, { width: 0, left: 0 });
   }
 }
