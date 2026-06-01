@@ -9,6 +9,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
@@ -160,6 +161,14 @@ export function InvoicePrintView({ order, settings }: Props) {
         </>
       )}
 
+      {/* Tag SHIP cho đơn đặt lịch — bottom, center */}
+      {order.fromBooking && (
+        <View style={s.shipTag}>
+          <Icon name="truck-fast" size={18} color="#000" />
+          <Text style={s.shipTagText}>ĐƠN GIAO TẬN NHÀ</Text>
+        </View>
+      )}
+
       <Divider />
       {settings.openingHours ? (
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
@@ -225,6 +234,21 @@ function makeStyles(FONT: number) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    shipTag: {
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 8,
+      marginBottom: 2,
+      borderWidth: 2,
+      borderColor: '#000',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+    },
+    shipTagText: { fontSize: FONT + 1, fontWeight: '900', color: '#000', letterSpacing: 0.5 },
     shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
     title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 2 },
     sectionLabel: { textAlign: 'center', fontSize: FONT - 1, color: '#333', marginBottom: 2 },
