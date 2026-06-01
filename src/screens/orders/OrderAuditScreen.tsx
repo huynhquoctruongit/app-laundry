@@ -490,7 +490,9 @@ const styles = StyleSheet.create({
   gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
   bag: {
     flex: 1,
+    maxWidth: 180,        // không cho 1 bịch giãn full chiều ngang
     aspectRatio: 1,
+    maxHeight: 180,
     borderRadius: radius.lg,
     borderWidth: 2,
     alignItems: 'center',
