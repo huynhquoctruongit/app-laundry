@@ -43,6 +43,7 @@ export function ProductsScreen() {
   const [costPrice, setCostPrice] = useState('');
   const [note, setNote] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [hiddenFromBooking, setHiddenFromBooking] = useState(false);
 
   // Wholesale
   const [wholesaleEnabled, setWholesaleEnabled] = useState(false);
@@ -76,6 +77,7 @@ export function ProductsScreen() {
         wholesaleTiers: buildTiersPayload(),
         note: note || undefined,
         isActive,
+        hiddenFromBooking,
       }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Đã thêm dịch vụ' });
@@ -97,6 +99,7 @@ export function ProductsScreen() {
         wholesaleTiers: buildTiersPayload(),
         note: note || undefined,
         isActive,
+        hiddenFromBooking,
       }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Đã cập nhật dịch vụ' });
@@ -124,6 +127,7 @@ export function ProductsScreen() {
     setCostPrice('');
     setNote('');
     setIsActive(true);
+    setHiddenFromBooking(false);
     setWholesaleEnabled(false);
     setTiers(DEFAULT_TIERS);
     setFormOpen(true);
@@ -138,6 +142,7 @@ export function ProductsScreen() {
     setCostPrice(p.costPrice != null ? String(p.costPrice) : '');
     setNote(p.note ?? '');
     setIsActive(p.isActive);
+    setHiddenFromBooking(p.hiddenFromBooking ?? false);
     setWholesaleEnabled(p.wholesaleEnabled ?? false);
     setTiers(
       p.wholesaleTiers && p.wholesaleTiers.length > 0
@@ -382,6 +387,15 @@ export function ProductsScreen() {
               <View style={styles.switchRow}>
                 <Text style={styles.switchLabel}>Đang bán</Text>
                 <Switch value={isActive} onValueChange={setIsActive} />
+              </View>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: spacing.md }}>
+                  <Text style={styles.switchLabel}>Ẩn khỏi web đặt lịch</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                    Dịch vụ nội bộ (Phụ thu…) sẽ không hiện cho khách khi đặt qua QR
+                  </Text>
+                </View>
+                <Switch value={hiddenFromBooking} onValueChange={setHiddenFromBooking} />
               </View>
             </ScrollView>
             <View style={[styles.modalActions, isPhone && styles.modalActionsPhone]}>

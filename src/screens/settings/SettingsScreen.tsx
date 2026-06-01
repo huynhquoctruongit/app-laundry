@@ -54,6 +54,7 @@ export function SettingsScreen() {
   const [loyaltyPointsRate, setLoyaltyPointsRate] = useState('');
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
+  const [freeShipThreshold, setFreeShipThreshold] = useState('');
   const [allowNoShiftOrder, setAllowNoShiftOrder] = useState(false);
 
   // API & printer
@@ -89,6 +90,7 @@ export function SettingsScreen() {
     setLoyaltyPointsRate(s.loyaltyPointsRate != null ? String(s.loyaltyPointsRate) : '');
     setDeliveryEnabled(!!s.deliveryEnabled);
     setDeliveryFee(s.deliveryFee != null ? String(s.deliveryFee) : '');
+    setFreeShipThreshold(s.freeShipThreshold != null ? String(s.freeShipThreshold) : '');
     setAllowNoShiftOrder(!!s.allowNoShiftOrder);
   }, [settingsQuery.data]);
 
@@ -380,6 +382,23 @@ export function SettingsScreen() {
                 />
               )}
 
+              <Input
+                label="Phí ship đơn đặt lịch"
+                hint="Cộng vào hoá đơn đơn đặt lịch khi dưới ngưỡng freeship"
+                value={bookingShippingFee}
+                onChangeText={setBookingShippingFee}
+                keyboardType="numeric"
+                placeholder="20000"
+              />
+              <Input
+                label="Miễn phí ship khi tổng đơn ≥"
+                hint="Để trống = luôn tính phí ship cho đơn đặt lịch"
+                value={freeShipThreshold}
+                onChangeText={setFreeShipThreshold}
+                keyboardType="numeric"
+                placeholder="80000"
+              />
+
               <SwitchRow
                 label="Cho phép tạo đơn khi chưa mở ca"
                 description="Bỏ ràng buộc phải mở ca trước khi tạo đơn"
@@ -394,6 +413,8 @@ export function SettingsScreen() {
                     loyaltyPointsRate: loyaltyPointsRate ? Number(loyaltyPointsRate) : null,
                     deliveryEnabled,
                     deliveryFee: deliveryFee ? Number(deliveryFee) : null,
+                    bookingShippingFee: bookingShippingFee ? Number(bookingShippingFee) : null,
+                    freeShipThreshold: freeShipThreshold ? Number(freeShipThreshold) : null,
                     allowNoShiftOrder,
                   })
                 }

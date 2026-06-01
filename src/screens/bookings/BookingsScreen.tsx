@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -109,12 +109,17 @@ export function BookingsScreen() {
           </Pressable>
         )}
         ListEmptyComponent={
-          !bookingsQuery.isLoading ? (
+          bookingsQuery.isLoading ? (
+            <View style={{ paddingTop: 64, alignItems: 'center', gap: spacing.md }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ color: colors.textMuted }}>Đang tải đặt lịch…</Text>
+            </View>
+          ) : (
             <EmptyState
               title="Chưa có yêu cầu đặt lịch"
               description="Khi khách quét QR trên hoá đơn và bấm đặt lại, yêu cầu sẽ hiển thị ở đây."
             />
-          ) : null
+          )
         }
       />
 

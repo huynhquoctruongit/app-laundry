@@ -56,9 +56,8 @@ export default function App() {
   const scanTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const refocusTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Scanner toggle — OFF mặc định để tránh focus battle (double-tap).
-  // User bật bằng FAB ở góc dưới phải khi muốn quét.
-  const [scannerActive, setScannerActive] = useState(false);
+  // Scanner toggle — BẬT mặc định. User có thể tắt bằng FAB nếu muốn.
+  const [scannerActive, setScannerActive] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [scannedOrder, setScannedOrder] = useState<Order | null>(null);
@@ -86,11 +85,11 @@ export default function App() {
     };
   }, []);
 
-  // Load trạng thái scanner đã lưu
+  // Load trạng thái scanner đã lưu — mặc định BẬT, chỉ tắt nếu user từng tắt ('0')
   useEffect(() => {
     AsyncStorage.getItem(SCANNER_PREF_KEY)
       .then((v) => {
-        if (v === '1') setScannerActive(true);
+        if (v === '0') setScannerActive(false);
       })
       .catch(() => {});
   }, []);

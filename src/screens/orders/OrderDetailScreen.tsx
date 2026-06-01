@@ -114,12 +114,25 @@ export function OrderDetailScreen() {
 
   return (
     <View style={styles.container}>
+    {/* Dấu "giao tận nhà" cho đơn đặt lịch — mép trái, giữa (kiểu giáp lai) */}
+    {order.fromBooking && (
+      <View pointerEvents="none" style={styles.shipStamp}>
+        <Icon name="truck-fast" size={16} color="#0284c7" />
+        <Text style={styles.shipStampText}>GIAO TẬN NHÀ</Text>
+      </View>
+    )}
     <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: hasFooter ? 140 : spacing.lg }}>
       {/* Header info */}
       <Card>
         <CardHeader style={styles.cardHeader}>
           <CardTitle>{order.code}</CardTitle>
           <OrderStatusBadge status={order.status} />
+          {order.fromBooking && (
+            <View style={styles.bookingChip}>
+              <Icon name="truck-fast" size={13} color="#0369a1" />
+              <Text style={styles.bookingChipText}>Đặt lịch</Text>
+            </View>
+          )}
         </CardHeader>
         <CardContent style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg }}>
           <InfoCol label="Khách hàng" value={order.customer?.name ?? '—'} sub={order.customer?.phone} />
@@ -288,6 +301,33 @@ function InfoCol({ label, value, sub }: { label: string; value: string; sub?: st
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  shipStamp: {
+    position: 'absolute',
+    left: -34,
+    top: '46%',
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    transform: [{ rotate: '-90deg' }],
+    borderWidth: 2,
+    borderColor: '#0284c7',
+    backgroundColor: '#e0f2fe',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  shipStampText: { fontSize: 12, fontWeight: '800', color: '#0284c7', letterSpacing: 0.5 },
+  bookingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#e0f2fe',
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  bookingChipText: { fontSize: 12, fontWeight: '700', color: '#0369a1' },
   footer: {
     padding: spacing.lg,
     paddingBottom: spacing.xl,

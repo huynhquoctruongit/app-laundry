@@ -17,6 +17,7 @@ export interface ProductPayload {
   wholesaleEnabled?: boolean;
   wholesaleTiers?: WholesaleTier[] | null;
   isActive?: boolean;
+  hiddenFromBooking?: boolean;
   note?: string;
 }
 

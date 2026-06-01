@@ -55,6 +55,7 @@ export interface Product {
   wholesaleEnabled?: boolean;
   wholesaleTiers?: WholesaleTier[] | null;
   isActive: boolean;
+  hiddenFromBooking?: boolean;
   note?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -226,6 +227,7 @@ export interface ShopSettings {
   deliveryFee: number | null;
   /** Phí ship cộng trên hoá đơn khi đơn từ booking (giao nhận QR) */
   bookingShippingFee: number | null;
+  freeShipThreshold: number | null;
   allowNoShiftOrder: boolean;
 }
 

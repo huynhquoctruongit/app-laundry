@@ -24,6 +24,15 @@ function pad2(n: number) {
 function money(v: number) {
   return v.toLocaleString('vi-VN') + 'đ';
 }
+/** Dòng quảng cáo freeship theo ngưỡng cấu hình */
+function freeShipLine(threshold?: number | null): string {
+  const t = Number(threshold ?? 0);
+  if (t > 0) {
+    const k = t % 1000 === 0 ? `${t / 1000}k` : money(t);
+    return `MIỄN PHÍ giao nhận cho đơn hàng trên ${k}`;
+  }
+  return 'Miễn phí giao nhận tận nơi';
+}
 
 interface Props {
   order: Order;
@@ -143,7 +152,7 @@ export function InvoicePrintView({ order, settings }: Props) {
           <View style={{ height: 6 }} />
           <View style={s.qrCta}>
             <Text style={s.qrTitle}>GIAO NHẬN ĐỒ TẬN NHÀ</Text>
-            <Text style={s.qrSubtitle}>Quét mã QR để đặt đơn — miễn phí tới tận nơi</Text>
+            <Text style={s.qrSubtitle}>{freeShipLine(settings.freeShipThreshold)}</Text>
             <View style={s.qrBox}>
               <QRCode value={order.qr.url} size={210} color="#000" backgroundColor="#fff" />
             </View>
