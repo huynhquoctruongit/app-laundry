@@ -40,7 +40,7 @@ export function BookingDetailScreen() {
   const navigation = useNavigation<any>();
   const { id } = route.params;
   const queryClient = useQueryClient();
-  const { canEdit, isAdmin } = usePermissions();
+  const { canEdit, isAdmin, canCreateOrder } = usePermissions();
 
   const bookingQuery = useQuery({
     queryKey: ['booking', id],
@@ -190,7 +190,8 @@ export function BookingDetailScreen() {
   const b = bookingQuery.data;
   const itemsTotal = b.items.reduce((sum, i) => sum + calcLineTotal(i), 0);
   const canModerate = canEdit && (b.status === 'PENDING' || b.status === 'CONFIRMED');
-  const canConvert = canEdit && (b.status === 'PENDING' || b.status === 'CONFIRMED');
+  // Nhân viên có quyền "Tạo đơn" được phép chuyển đặt lịch thành đơn (backend authStaff)
+  const canConvert = canCreateOrder && (b.status === 'PENDING' || b.status === 'CONFIRMED');
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>

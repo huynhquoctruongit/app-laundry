@@ -44,7 +44,7 @@ export function CustomersScreen() {
 
   const createMutation = useMutation({
     mutationFn: () =>
-      customerApi.create({ name, phone, address: address || undefined, note: note || undefined }),
+      customerApi.create({ name, phone, address: address.trim() || undefined, note: note.trim() || undefined }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Đã thêm khách hàng' });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -59,8 +59,9 @@ export function CustomersScreen() {
       customerApi.update(editing!.id, {
         name,
         phone,
-        address: address || undefined,
-        note: note || undefined,
+        // Gửi chuỗi rỗng (KHÔNG phải undefined) để cho phép XOÁ địa chỉ/ghi chú
+        address: address.trim(),
+        note: note.trim(),
       }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Đã cập nhật khách hàng' });

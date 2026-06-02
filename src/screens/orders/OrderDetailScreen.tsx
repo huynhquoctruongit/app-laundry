@@ -12,7 +12,7 @@ import { orderApi } from '@/api/order.api';
 import { settingsApi } from '@/api/settings.api';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
-import { NEXT_STATUS_TRANSITIONS, ORDER_STATUS_LABEL, type OrderStatus } from '@/helpers/enums/order-status';
+import { NEXT_STATUS_TRANSITIONS, ORDER_STATUS_LABEL, STATUS_ACTION_LABEL, type OrderStatus } from '@/helpers/enums/order-status';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
 import { calcLineTotal, formatCurrency, formatDateTime } from '@/lib/utils';
@@ -25,7 +25,7 @@ export function OrderDetailScreen() {
   const navigation = useNavigation<any>();
   const { id, autoPrint } = route.params;
   const queryClient = useQueryClient();
-  const { canChangeStatus, canCompleteOrder, canDelete, canEdit, isAdmin } = usePermissions();
+  const { canChangeStatus, canCompleteOrder, canCancel, canDelete, canEdit, isAdmin } = usePermissions();
   const [previewOpen, setPreviewOpen] = useState(false);
   const autoPrintTriggered = useRef(false);
 
@@ -102,15 +102,20 @@ export function OrderDetailScreen() {
   // Admin: đổi sang BẤT KỲ trạng thái nào (trừ trạng thái hiện tại).
   // Nhân viên: theo luồng cho phép.
   const allStatuses = Object.keys(ORDER_STATUS_LABEL) as OrderStatus[];
+  // Nhân viên: các bước tiến tới theo luồng (bỏ "Huỷ" nếu không có quyền huỷ).
+  const staffNext = (NEXT_STATUS_TRANSITIONS[order.status as OrderStatus] ?? []).filter(
+    (st) => canCancel || st !== 'CANCELLED',
+  );
   const statusOptions: OrderStatus[] = canChangeStatus
     ? allStatuses.filter((s) => s !== order.status)
-    : NEXT_STATUS_TRANSITIONS[order.status as OrderStatus] ?? [];
+    : staffNext;
   const discount = Number(order.discountAmount ?? 0);
   const remaining = Number(order.totalAmount) - discount;
 
-  const hasFooter =
-    (!canChangeStatus && canCompleteOrder && order.status === 'READY') ||
-    (canChangeStatus && statusOptions.length > 0);
+  // NV đang ở READY → nút "Hoàn thành" nổi bật; còn lại hiện nút đổi trạng thái.
+  const showStaffComplete =
+    !canChangeStatus && canCompleteOrder && order.status === 'READY';
+  const hasFooter = showStaffComplete || statusOptions.length > 0;
 
   return (
     <View style={styles.container}>
@@ -252,7 +257,7 @@ export function OrderDetailScreen() {
     {/* Footer cố định — nút hoàn thành / đổi trạng thái */}
     {hasFooter && (
       <View style={styles.footer}>
-        {!canChangeStatus && canCompleteOrder && order.status === 'READY' && (
+        {showStaffComplete ? (
           <Button
             size="lg"
             fullWidth
@@ -262,8 +267,7 @@ export function OrderDetailScreen() {
           >
             Hoàn thành — Đã giao cho khách
           </Button>
-        )}
-        {canChangeStatus && statusOptions.length > 0 && (
+        ) : statusOptions.length > 0 ? (
           <View style={{ gap: spacing.xs }}>
             <Text style={{ fontSize: 12, color: colors.textMuted, fontWeight: '600' }}>
               Đổi trạng thái sang:
@@ -277,12 +281,12 @@ export function OrderDetailScreen() {
                   onPress={() => statusMutation.mutate(s)}
                   loading={statusMutation.isPending}
                 >
-                  {ORDER_STATUS_LABEL[s]}
+                  {STATUS_ACTION_LABEL[s] ?? ORDER_STATUS_LABEL[s]}
                 </Button>
               ))}
             </View>
           </View>
-        )}
+        ) : null}
       </View>
     )}
     </View>
