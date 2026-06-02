@@ -174,8 +174,10 @@ export function InvoicePrintView({ order, settings }: Props) {
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
       <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
-      {/* Chừa đủ để nhát cắt không phạm vào dòng "Cảm ơn" (khe dao ~ lề này) */}
-      <View style={{ height: 64 }} />
+      {/* Lề DƯỚI: vừa tránh nhát cắt phạm vào "Cảm ơn", vừa cân với lề trên
+          (lề trên là khe vật lý đầu in→dao cắt, không giảm được bằng phần mềm
+          nên nới lề dưới cho cân, không bị hẹp). */}
+      <View style={{ height: 100 }} />
     </View>
   );
 }
