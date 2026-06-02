@@ -25,14 +25,14 @@ function pad2(n: number) {
 function money(v: number) {
   return v.toLocaleString('vi-VN') + 'đ';
 }
-/** Dòng quảng cáo freeship theo ngưỡng cấu hình */
-function freeShipLine(threshold?: number | null): string {
+/** Dòng freeship — tách "MIỄN PHÍ" (in đậm) khỏi phần sau (in thường) cho nổi bật */
+function freeShipLine(threshold?: number | null): { lead: string; rest: string } {
   const t = Number(threshold ?? 0);
   if (t > 0) {
     const k = t % 1000 === 0 ? `${t / 1000}k` : money(t);
-    return `MIỄN PHÍ giao nhận cho đơn hàng trên ${k}`;
+    return { lead: 'MIỄN PHÍ', rest: ` giao nhận cho đơn hàng trên ${k}` };
   }
-  return 'Miễn phí giao nhận tận nơi';
+  return { lead: 'MIỄN PHÍ', rest: ' giao nhận tận nơi' };
 }
 
 interface Props {
@@ -50,6 +50,7 @@ export function InvoicePrintView({ order, settings }: Props) {
   const dateStr = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
   const total = subtotal;
+  const freeShip = freeShipLine(settings.freeShipThreshold);
 
   // Cỡ chữ lấy từ cài đặt (clamp về khoảng hợp lý cho ảnh in)
   const baseFont = clamp(settings.invoiceFontSize ?? 15, 12, 26);
@@ -89,8 +90,7 @@ export function InvoicePrintView({ order, settings }: Props) {
 
       <Divider />
 
-      {/* Customer */}
-      <Text style={s.sectionLabel}>KHÁCH HÀNG</Text>
+      {/* Customer — bỏ title "KHÁCH HÀNG" cho gọn */}
       <Text style={[s.customerName, { fontSize: nameFont }]}>
         {order.customer?.name ?? '—'}
       </Text>
@@ -150,10 +150,12 @@ export function InvoicePrintView({ order, settings }: Props) {
       {/* QR section — CTA nổi bật để khách đặt giao nhận tại nhà */}
       {settings.invoiceShowQR && order.qr?.url && (
         <>
-          <View style={{ height: 6 }} />
+          <View style={{ height: 3 }} />
           <View style={s.qrCta}>
             <Text style={s.qrTitle}>GIAO NHẬN ĐỒ TẬN NHÀ</Text>
-            <Text style={s.qrSubtitle}>{freeShipLine(settings.freeShipThreshold)}</Text>
+            <Text style={s.qrSubtitle}>
+              <Text style={s.qrFree}>{freeShip.lead}</Text>{freeShip.rest}
+            </Text>
             <View style={s.qrBox}>
               <QRCode value={order.qr.url} size={210} color="#000" backgroundColor="#fff" />
             </View>
@@ -174,10 +176,9 @@ export function InvoicePrintView({ order, settings }: Props) {
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
       <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
-      {/* Lề DƯỚI: vừa tránh nhát cắt phạm vào "Cảm ơn", vừa cân với lề trên
-          (lề trên là khe vật lý đầu in→dao cắt, không giảm được bằng phần mềm
-          nên nới lề dưới cho cân, không bị hẹp). */}
-      <View style={{ height: 100 }} />
+      {/* Lề DƯỚI tối thiểu an toàn: đủ để nhát cắt không phạm "Cảm ơn" mà
+          không phí giấy (test trước đây: 48 bị cụt footer, 64 là mức gọn an toàn). */}
+      <View style={{ height: 64 }} />
     </View>
   );
 }
@@ -201,18 +202,18 @@ function makeStyles(FONT: number) {
     divider: {
       height: 1,
       backgroundColor: '#000',
-      marginVertical: 6,
+      marginVertical: 4,
     },
     center: { textAlign: 'center', fontSize: FONT, color: '#000' },
-    codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 6 },
+    codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 3 },
     qrCta: {
       alignItems: 'center',
       borderWidth: 3,
       borderColor: '#000',
       borderRadius: 10,
-      paddingVertical: 12,
+      paddingVertical: 8,
       paddingHorizontal: 8,
-      marginVertical: 4,
+      marginVertical: 3,
     },
     qrTitle: {
       fontSize: FONT + 9,
@@ -223,15 +224,16 @@ function makeStyles(FONT: number) {
     },
     qrSubtitle: {
       fontSize: FONT,
-      fontWeight: '600',
+      fontWeight: '400',
       color: '#000',
       textAlign: 'center',
-      marginTop: 3,
-      marginBottom: 8,
+      marginTop: 2,
+      marginBottom: 4,
     },
+    qrFree: { fontWeight: '900' },
     qrBox: {
       backgroundColor: '#fff',
-      padding: 8,
+      padding: 5,
       borderRadius: 6,
       alignItems: 'center',
       justifyContent: 'center',
@@ -242,7 +244,7 @@ function makeStyles(FONT: number) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      marginTop: 8,
+      marginTop: 4,
       marginBottom: 2,
       borderWidth: 2,
       borderColor: '#000',
@@ -252,11 +254,10 @@ function makeStyles(FONT: number) {
     },
     shipTagText: { fontSize: FONT + 1, fontWeight: '900', color: '#000', letterSpacing: 0.5 },
     shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
-    title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 2 },
-    sectionLabel: { textAlign: 'center', fontSize: FONT - 1, color: '#333', marginBottom: 2 },
-    customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 2 },
+    title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 1 },
+    customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 1 },
     meta: { fontSize: FONT - 1, color: '#333' },
-    row: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 2 },
+    row: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 1 },
     col1: { flex: 1, fontSize: FONT, color: '#000', flexWrap: 'wrap' },
     col2: { width: col2W, textAlign: 'center', fontSize: FONT, color: '#000' },
     col3: { width: col3W, textAlign: 'right', fontSize: FONT, color: '#000' },
