@@ -6,6 +6,7 @@ export interface OrderListQuery {
   status?: string;
   customerId?: string;
   assignedToId?: string;
+  fromBooking?: boolean;
   page?: number;
   pageSize?: number;
 }

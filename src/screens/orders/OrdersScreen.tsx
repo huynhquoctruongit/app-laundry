@@ -18,8 +18,9 @@ import { formatCurrency, formatDateTime } from '@/lib/utils';
 
 const PAGE_SIZE = 20;
 
-const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
+const STATUS_FILTERS: { value: OrderStatus | 'ALL' | 'BOOKING'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
+  { value: 'BOOKING', label: 'Đơn đặt' },
   { value: 'CREATED', label: ORDER_STATUS_LABEL.CREATED },
   { value: 'RECEIVED', label: ORDER_STATUS_LABEL.RECEIVED },
   { value: 'WASHING', label: ORDER_STATUS_LABEL.WASHING },
@@ -33,7 +34,7 @@ export function OrdersScreen() {
   const { canCreateOrder } = usePermissions();
   const { isPhone } = useResponsive();
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
+  const [status, setStatus] = useState<OrderStatus | 'ALL' | 'BOOKING'>('ALL');
 
   // Lightweight query just for the badge counts
   const countsQuery = useQuery({
@@ -43,7 +44,11 @@ export function OrdersScreen() {
   });
 
   const counts = countsQuery.data ?? {};
-  const totalAll = Object.values(counts).reduce((s, n) => s + n, 0);
+  // "Tất cả" KHÔNG cộng key BOOKING (đó là lát cắt riêng theo fromBooking)
+  const totalAll = Object.entries(counts).reduce(
+    (s, [k, n]) => (k === 'BOOKING' ? s : s + n),
+    0,
+  );
 
   // Infinite-scroll query for the list
   const ordersQuery = useInfiniteQuery({
@@ -52,7 +57,8 @@ export function OrdersScreen() {
     queryFn: ({ pageParam }) =>
       orderApi.list({
         search: search || undefined,
-        status: status === 'ALL' ? undefined : status,
+        status: status === 'ALL' || status === 'BOOKING' ? undefined : status,
+        fromBooking: status === 'BOOKING' ? true : undefined,
         page: pageParam as number,
         pageSize: PAGE_SIZE,
       }),
@@ -151,6 +157,11 @@ export function OrdersScreen() {
                   <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
                     <Text style={styles.code}>{item.code}</Text>
                     <OrderStatusBadge status={item.status} />
+                    {item.fromBooking && (
+                      <View style={styles.shipBadge}>
+                        <Text style={styles.shipBadgeText}>SHIPPING</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.customer}>{item.customer?.name ?? '—'}</Text>
                   <Text style={styles.meta}>
@@ -207,4 +218,11 @@ const styles = StyleSheet.create({
   customer: { fontSize: 14, color: colors.text },
   meta: { fontSize: 12, color: colors.textMuted },
   amount: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  shipBadge: {
+    backgroundColor: '#000',
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  shipBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
 });
