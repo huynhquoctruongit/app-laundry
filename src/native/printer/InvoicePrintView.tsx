@@ -9,7 +9,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
@@ -63,6 +62,12 @@ export function InvoicePrintView({ order, settings }: Props) {
 
   return (
     <View style={s.paper}>
+      {/* Tag SHIPPING (đơn ship/đặt lịch) — TRÊN CÙNG, pill đen chữ trắng */}
+      {order.fromBooking && (
+        <View style={s.shipTopTag}>
+          <Text style={s.shipTopTagText}>SHIPPING</Text>
+        </View>
+      )}
       {/* Shop name */}
       {settings.invoiceShowShopName && (
         <Text style={s.shopName}>{settings.shopName || BRAND_NAME}</Text>
@@ -163,14 +168,6 @@ export function InvoicePrintView({ order, settings }: Props) {
         </>
       )}
 
-      {/* Tag SHIP cho đơn đặt lịch — bottom, center */}
-      {order.fromBooking && (
-        <View style={s.shipTag}>
-          <Icon name="truck-fast" size={18} color="#000" />
-          <Text style={s.shipTagText}>ĐƠN GIAO TẬN NHÀ</Text>
-        </View>
-      )}
-
       <Divider />
       {settings.openingHours ? (
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
@@ -238,21 +235,21 @@ function makeStyles(FONT: number) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    shipTag: {
+    shipTopTag: {
       alignSelf: 'center',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      marginTop: 4,
-      marginBottom: 2,
-      borderWidth: 2,
-      borderColor: '#000',
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 5,
+      backgroundColor: '#000',
+      borderRadius: 999,
+      paddingHorizontal: 24,
+      paddingVertical: 6,
+      marginBottom: 8,
     },
-    shipTagText: { fontSize: FONT + 1, fontWeight: '900', color: '#000', letterSpacing: 0.5 },
+    shipTopTagText: {
+      color: '#fff',
+      fontSize: FONT + 4,
+      fontWeight: '900',
+      letterSpacing: 3,
+      textAlign: 'center',
+    },
     shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
     title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 1 },
     customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 1 },
