@@ -36,14 +36,6 @@ interface DraftItem {
   unitPrice: string;
 }
 
-const emptyItem: DraftItem = {
-  productId: undefined,
-  name: '',
-  quantity: '1',
-  weight: '',
-  unitPrice: '0',
-};
-
 export function OrderCreateScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -71,10 +63,10 @@ export function OrderCreateScreen() {
   const [qaPhone, setQaPhone] = useState('');
   const [qaAddress, setQaAddress] = useState('');
 
-  // Product picker per row index
-  const [productPickerFor, setProductPickerFor] = useState<number | null>(null);
+  // Product picker (mở từ nút "Thêm" để xem toàn bộ dịch vụ)
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
 
-  const [items, setItems] = useState<DraftItem[]>([{ ...emptyItem }]);
+  const [items, setItems] = useState<DraftItem[]>([]);
   const [note, setNote] = useState('');
   const [pickupAt, setPickupAt] = useState<Date | null>(null);
   const [showPickupPicker, setShowPickupPicker] = useState(false);
@@ -219,27 +211,35 @@ export function OrderCreateScreen() {
     }
   }
 
-  function pickProduct(i: number, p: Product) {
-    const qty = Number(items[i]?.quantity || 1);
-    updateItem(i, {
-      productId: p.id,
-      name: p.name,
-      unitPrice: String(getEffectivePrice(p, qty)),
+  /** Thêm dịch vụ vào đơn — đã có thì +1 số lượng (tap nhanh kiểu POS) */
+  function addProduct(p: Product) {
+    setItems((arr) => {
+      const idx = arr.findIndex((it) => it.productId === p.id);
+      if (idx >= 0) {
+        return arr.map((it, i) => {
+          if (i !== idx) return it;
+          const next = Number(it.quantity || 1) + 1;
+          const price = p.wholesaleEnabled
+            ? String(getEffectivePrice(p, next))
+            : it.unitPrice;
+          return { ...it, quantity: String(next), unitPrice: price };
+        });
+      }
+      return [
+        ...arr,
+        {
+          productId: p.id,
+          name: p.name,
+          quantity: '1',
+          weight: '',
+          unitPrice: String(getEffectivePrice(p, 1)),
+        },
+      ];
     });
-    setProductPickerFor(null);
   }
 
   function removeItem(i: number) {
     setItems((arr) => arr.filter((_, idx) => idx !== i));
-  }
-
-  function addItem() {
-    setItems((arr) => {
-      const next = [...arr, { ...emptyItem }];
-      // Tự động mở picker cho dòng vừa thêm
-      setProductPickerFor(next.length - 1);
-      return next;
-    });
   }
 
   function handleSubmit() {
@@ -294,211 +294,245 @@ export function OrderCreateScreen() {
         paddingBottom: 140,
       }}
     >
-      {/* Customer */}
-      <Card>
-        <CardHeader><CardTitle>Khách hàng</CardTitle></CardHeader>
-        <CardContent style={{ gap: spacing.sm }}>
-          {customer ? (
-            <View style={styles.customerBox}>
-              <View style={styles.customerAvatar}>
-                <Icon name="account" size={22} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.customerName}>{customer.name}</Text>
-                <Text style={styles.customerMeta}>{customer.phone}</Text>
-                {customer.address && (
-                  <Text style={styles.customerMeta}>{customer.address}</Text>
-                )}
-              </View>
-              <Button variant="outline" size="sm" onPress={() => setCustomerPickerOpen(true)}>
-                Đổi
-              </Button>
-            </View>
-          ) : (
-            <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
-              <Button
-                onPress={() => setCustomerPickerOpen(true)}
-                leftIcon={<Icon name="account-search" size={20} color="#fff" />}
-                style={{ flex: isPhone ? undefined : 1 }}
-              >
-                Chọn khách hàng
-              </Button>
-              <Button
-                variant="outline"
-                onPress={() => setQuickAddOpen(true)}
-                leftIcon={<Icon name="account-plus" size={20} color={colors.text} />}
-                style={{ flex: isPhone ? undefined : 1 }}
-              >
-                Thêm mới
-              </Button>
-            </View>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Items */}
-      <Card>
-        <CardHeader
-          style={{
-            flexDirection: isPhone ? 'column' : 'row',
-            alignItems: isPhone ? 'stretch' : 'center',
-            justifyContent: 'space-between',
-            gap: spacing.sm,
-          }}
-        >
-          <CardTitle>Dịch vụ</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={addItem}
-            leftIcon={<Icon name="plus" size={18} color={colors.text} />}
-          >
-            Thêm dòng
-          </Button>
-        </CardHeader>
-        <CardContent style={{ gap: spacing.sm }}>
-          {items.map((it, i) => (
-            <View key={i} style={styles.itemCard}>
-              <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-                <Text style={{ fontWeight: '700', color: colors.textMuted, width: 24 }}>
-                  {i + 1}.
-                </Text>
-                <Pressable
-                  onPress={() => setProductPickerFor(i)}
-                  style={[styles.pickProductBig, !it.name && styles.pickProductEmpty]}
-                >
-                  <Icon
-                    name={it.name ? 'tag' : 'tag-plus-outline'}
-                    size={18}
-                    color={it.name ? colors.primary : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.pickProductBigText,
-                      !it.name && { color: colors.textMuted, fontWeight: '500' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {it.name || 'Chọn dịch vụ'}
-                  </Text>
-                  <Icon name="chevron-right" size={18} color={colors.textMuted} />
-                </Pressable>
-                {items.length > 1 && (
-                  <Pressable onPress={() => removeItem(i)} style={styles.removeBtn}>
-                    <Icon name="close" size={18} color={colors.danger} />
-                  </Pressable>
-                )}
-              </View>
-
-              <View
-                style={{
-                  flexDirection: isPhone ? 'column' : 'row',
-                  gap: spacing.md,
-                  alignItems: isPhone ? 'stretch' : 'flex-start',
-                }}
-              >
-                <View style={{ flex: isPhone ? undefined : 1.3 }}>
-                  <Text style={styles.fieldLabel}>SL</Text>
-                  <View style={styles.stepperRow}>
-                    <Pressable
-                      onPress={() => adjustQuantity(i, -1)}
-                      style={styles.stepBtn}
-                      hitSlop={6}
-                    >
-                      <Icon name="minus" size={20} color={colors.text} />
-                    </Pressable>
-                    <View style={styles.stepInputWrap}>
-                      <Input
-                        value={it.quantity}
-                        onChangeText={(v) => onQuantityInput(i, v)}
-                        onBlur={() => onQuantityBlur(i)}
-                        keyboardType="number-pad"
-                        style={styles.stepInputText}
-                      />
-                    </View>
-                    <Pressable
-                      onPress={() => adjustQuantity(i, 1)}
-                      style={styles.stepBtn}
-                      hitSlop={6}
-                    >
-                      <Icon name="plus" size={20} color={colors.text} />
-                    </Pressable>
+      <View style={isPhone ? { gap: spacing.lg } : styles.columns}>
+        {/* ===== Cột trái: Khách hàng + Chọn dịch vụ ===== */}
+        <View style={isPhone ? { gap: spacing.lg } : styles.colLeft}>
+          {/* Khách hàng */}
+          <Card>
+            <CardHeader><CardTitle>Khách hàng</CardTitle></CardHeader>
+            <CardContent style={{ gap: spacing.sm }}>
+              {customer ? (
+                <View style={styles.customerBox}>
+                  <View style={styles.customerAvatar}>
+                    <Icon name="account" size={22} color={colors.primary} />
                   </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.customerName}>{customer.name}</Text>
+                    {!!customer.phone && <Text style={styles.customerMeta}>{customer.phone}</Text>}
+                    {customer.address && (
+                      <Text style={styles.customerMeta}>{customer.address}</Text>
+                    )}
+                  </View>
+                  <Button variant="outline" size="sm" onPress={() => setCustomerPickerOpen(true)}>
+                    Đổi
+                  </Button>
                 </View>
-                <View style={{ flex: isPhone ? undefined : 1 }}>
-                  <Input
-                    label="Cân (kg)"
-                    value={it.weight}
-                    onChangeText={(v) => updateItem(i, { weight: v.replace(',', '.') })}
-                    keyboardType="decimal-pad"
-                    placeholder="—"
-                  />
+              ) : (
+                <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
+                  <Button
+                    onPress={() => setCustomerPickerOpen(true)}
+                    leftIcon={<Icon name="account-search" size={20} color="#fff" />}
+                    style={{ flex: isPhone ? undefined : 1 }}
+                  >
+                    Chọn khách hàng
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onPress={() => setQuickAddOpen(true)}
+                    leftIcon={<Icon name="account-plus" size={20} color={colors.text} />}
+                    style={{ flex: isPhone ? undefined : 1 }}
+                  >
+                    Thêm mới
+                  </Button>
                 </View>
-                <View style={{ flex: isPhone ? undefined : 1.6 }}>
-                  <Input
-                    label="Đơn giá"
-                    value={it.unitPrice}
-                    onChangeText={(v) => updateItem(i, { unitPrice: v })}
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-              <View style={[styles.subtotalRow, isPhone && styles.subtotalRowPhone]}>
-                <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-                  Thành tiền
-                  {it.weight && Number(it.weight) > 0
-                    ? `  (${it.weight}kg × ${formatCurrency(Number(it.unitPrice || 0))}${Number(it.quantity) > 1 ? ` × ${it.quantity}` : ''})`
-                    : ''}
-                </Text>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
-                  {formatCurrency(calcLineTotal(it))}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Pickup & note */}
-      <Card>
-        <CardHeader><CardTitle>Thông tin thêm</CardTitle></CardHeader>
-        <CardContent style={{ gap: spacing.md }}>
-          <View>
-            <Text style={styles.fieldLabel}>Hẹn lấy đồ</Text>
-            <Pressable onPress={() => setShowPickupPicker(true)} style={styles.dateBtn}>
-              <Icon name="calendar-clock" size={18} color={colors.textMuted} />
-              <Text style={styles.dateBtnText}>
-                {pickupAt ? formatDateTime(pickupAt) : 'Chọn ngày & giờ'}
-              </Text>
-              {pickupAt && (
-                <Pressable onPress={() => setPickupAt(null)} hitSlop={8}>
-                  <Icon name="close" size={18} color={colors.textMuted} />
-                </Pressable>
               )}
-            </Pressable>
-            {showPickupPicker && (
-              <DateTimePicker
-                value={pickupAt ?? new Date()}
-                mode="datetime"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(_, d) => {
-                  setShowPickupPicker(Platform.OS === 'ios');
-                  if (d) setPickupAt(d);
-                }}
-              />
-            )}
-          </View>
+            </CardContent>
+          </Card>
 
-          <Input
-            label="Ghi chú"
-            value={note}
-            onChangeText={setNote}
-            multiline
-            numberOfLines={3}
-            style={{ minHeight: 80, textAlignVertical: 'top' }}
-          />
-        </CardContent>
-      </Card>
+          {/* Chọn dịch vụ nhanh: tag top-4 (theo ưu tiên) + nút Thêm mở full */}
+          <Card>
+            <CardHeader><CardTitle>Chọn dịch vụ</CardTitle></CardHeader>
+            <CardContent style={{ gap: spacing.sm }}>
+              {productsQuery.isLoading ? (
+                <Text style={styles.emptyMsg}>Đang tải dịch vụ…</Text>
+              ) : (productsQuery.data?.items ?? []).length === 0 ? (
+                <View style={styles.emptyBox}>
+                  <Icon name="tag-off-outline" size={40} color={colors.textMuted} />
+                  <Text style={styles.emptyTitle}>Chưa có dịch vụ</Text>
+                  <Button
+                    size="sm"
+                    onPress={() => navigation.navigate('Main', { screen: 'Products' })}
+                    leftIcon={<Icon name="plus" size={18} color="#fff" />}
+                    style={{ marginTop: spacing.xs }}
+                  >
+                    Thêm dịch vụ
+                  </Button>
+                </View>
+              ) : (
+                <View style={styles.tagWrap}>
+                  {(productsQuery.data?.items ?? []).slice(0, 4).map((p) => {
+                    const added = items.find((it) => it.productId === p.id);
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => addProduct(p)}
+                        style={[styles.tag, !!added && styles.tagActive]}
+                      >
+                        <Icon
+                          name={added ? 'check' : 'plus'}
+                          size={16}
+                          color={added ? '#fff' : colors.primary}
+                        />
+                        <Text
+                          style={[styles.tagText, !!added && styles.tagTextActive]}
+                          numberOfLines={1}
+                        >
+                          {p.name}
+                        </Text>
+                        {added && (
+                          <View style={styles.tagQty}>
+                            <Text style={styles.tagQtyText}>{added.quantity}</Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                  <Pressable onPress={() => setProductPickerOpen(true)} style={styles.tagMore}>
+                    <Icon name="dots-horizontal" size={18} color={colors.text} />
+                    <Text style={styles.tagMoreText}>Thêm</Text>
+                  </Pressable>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+        </View>
+
+        {/* ===== Cột phải: Giỏ đơn + Thông tin thêm ===== */}
+        <View style={isPhone ? { gap: spacing.lg } : styles.colRight}>
+          {/* Giỏ đơn */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Giỏ đơn{items.length ? ` (${items.length})` : ''}</CardTitle>
+            </CardHeader>
+            <CardContent style={{ gap: spacing.sm }}>
+              {items.length === 0 ? (
+                <View style={styles.emptyCart}>
+                  <Icon name="cart-outline" size={40} color={colors.textMuted} />
+                  <Text style={styles.emptyDesc}>Chạm vào dịch vụ bên trên để thêm vào đơn</Text>
+                </View>
+              ) : (
+                items.map((it, i) => (
+                  <View key={i} style={styles.itemCard}>
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+                      <Text style={styles.itemIndex}>{i + 1}.</Text>
+                      <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
+                      <Pressable onPress={() => removeItem(i)} style={styles.removeBtn} hitSlop={6}>
+                        <Icon name="close" size={18} color={colors.danger} />
+                      </Pressable>
+                    </View>
+
+                    <View
+                      style={{
+                        flexDirection: isPhone ? 'column' : 'row',
+                        gap: spacing.md,
+                        alignItems: isPhone ? 'stretch' : 'flex-start',
+                      }}
+                    >
+                      <View style={{ flex: isPhone ? undefined : 1.3 }}>
+                        <Text style={styles.fieldLabel}>SL</Text>
+                        <View style={styles.stepperRow}>
+                          <Pressable
+                            onPress={() => adjustQuantity(i, -1)}
+                            style={styles.stepBtn}
+                            hitSlop={6}
+                          >
+                            <Icon name="minus" size={20} color={colors.text} />
+                          </Pressable>
+                          <View style={styles.stepInputWrap}>
+                            <Input
+                              value={it.quantity}
+                              onChangeText={(v) => onQuantityInput(i, v)}
+                              onBlur={() => onQuantityBlur(i)}
+                              keyboardType="number-pad"
+                              style={styles.stepInputText}
+                            />
+                          </View>
+                          <Pressable
+                            onPress={() => adjustQuantity(i, 1)}
+                            style={styles.stepBtn}
+                            hitSlop={6}
+                          >
+                            <Icon name="plus" size={20} color={colors.text} />
+                          </Pressable>
+                        </View>
+                      </View>
+                      <View style={{ flex: isPhone ? undefined : 1 }}>
+                        <Input
+                          label="Cân (kg)"
+                          value={it.weight}
+                          onChangeText={(v) => updateItem(i, { weight: v.replace(',', '.') })}
+                          keyboardType="decimal-pad"
+                          placeholder="—"
+                        />
+                      </View>
+                      <View style={{ flex: isPhone ? undefined : 1.6 }}>
+                        <Input
+                          label="Đơn giá"
+                          value={it.unitPrice}
+                          onChangeText={(v) => updateItem(i, { unitPrice: v })}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </View>
+                    <View style={[styles.subtotalRow, isPhone && styles.subtotalRowPhone]}>
+                      <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                        Thành tiền
+                        {it.weight && Number(it.weight) > 0
+                          ? `  (${it.weight}kg × ${formatCurrency(Number(it.unitPrice || 0))}${Number(it.quantity) > 1 ? ` × ${it.quantity}` : ''})`
+                          : ''}
+                      </Text>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
+                        {formatCurrency(calcLineTotal(it))}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Thông tin thêm */}
+          <Card>
+            <CardHeader><CardTitle>Thông tin thêm</CardTitle></CardHeader>
+            <CardContent style={{ gap: spacing.md }}>
+              <View>
+                <Text style={styles.fieldLabel}>Hẹn lấy đồ</Text>
+                <Pressable onPress={() => setShowPickupPicker(true)} style={styles.dateBtn}>
+                  <Icon name="calendar-clock" size={18} color={colors.textMuted} />
+                  <Text style={styles.dateBtnText}>
+                    {pickupAt ? formatDateTime(pickupAt) : 'Chọn ngày & giờ'}
+                  </Text>
+                  {pickupAt && (
+                    <Pressable onPress={() => setPickupAt(null)} hitSlop={8}>
+                      <Icon name="close" size={18} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+                </Pressable>
+                {showPickupPicker && (
+                  <DateTimePicker
+                    value={pickupAt ?? new Date()}
+                    mode="datetime"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(_, d) => {
+                      setShowPickupPicker(Platform.OS === 'ios');
+                      if (d) setPickupAt(d);
+                    }}
+                  />
+                )}
+              </View>
+
+              <Input
+                label="Ghi chú"
+                value={note}
+                onChangeText={setNote}
+                multiline
+                numberOfLines={3}
+                style={{ minHeight: 80, textAlignVertical: 'top' }}
+              />
+            </CardContent>
+          </Card>
+        </View>
+      </View>
 
       {/* Customer picker modal */}
       <Modal
@@ -599,16 +633,17 @@ export function OrderCreateScreen() {
         </View>
       </Modal>
 
-      {/* Product picker */}
+      {/* Product picker (toàn bộ dịch vụ) — chạm để thêm, chọn nhiều, Xong để đóng */}
       <Modal
-        visible={productPickerFor !== null}
+        visible={productPickerOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setProductPickerFor(null)}
+        onRequestClose={() => setProductPickerOpen(false)}
       >
         <View style={[styles.modalBackdrop, isPhone && styles.modalBackdropPhone]}>
           <View style={[styles.modalCard, isPhone && styles.modalCardPhone]}>
-            <Text style={styles.modalTitle}>Chọn dịch vụ</Text>
+            <Text style={styles.modalTitle}>Tất cả dịch vụ</Text>
+            <Text style={styles.modalSubtitle}>Chạm để thêm vào đơn · có thể chọn nhiều</Text>
             {productsQuery.isLoading ? (
               <Text style={styles.emptyMsg}>Đang tải dịch vụ…</Text>
             ) : (productsQuery.data?.items ?? []).length === 0 ? (
@@ -620,7 +655,7 @@ export function OrderCreateScreen() {
                 </Text>
                 <Button
                   onPress={() => {
-                    setProductPickerFor(null);
+                    setProductPickerOpen(false);
                     navigation.navigate('Main', { screen: 'Products' });
                   }}
                   leftIcon={<Icon name="plus" size={20} color="#fff" />}
@@ -632,38 +667,52 @@ export function OrderCreateScreen() {
             ) : (
               <ScrollView style={{ maxHeight: isPhone ? 340 : 420 }}>
                 <View style={{ gap: 4 }}>
-                  {(productsQuery.data?.items ?? []).map((p) => (
-                    <Pressable
-                      key={p.id}
-                      onPress={() => productPickerFor !== null && pickProduct(productPickerFor, p)}
-                      style={[styles.pickerItem, isPhone && styles.pickerItemPhone]}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.pickerName}>{p.name}</Text>
-                        <Text style={styles.pickerMeta}>
-                          {p.unit}
-                          {p.wholesaleEnabled ? '  · Bán sỉ' : ''}
-                        </Text>
-                        {p.wholesaleEnabled && p.wholesaleTiers && p.wholesaleTiers.length > 0 && (
-                          <Text style={styles.pickerTiers}>
-                            {p.wholesaleTiers
-                              .sort((a, b) => a.minQty - b.minQty)
-                              .map((t) => `≥${t.minQty}: ${formatCurrency(t.price)}`)
-                              .join('  ·  ')}
+                  {(productsQuery.data?.items ?? []).map((p) => {
+                    const added = items.find((it) => it.productId === p.id);
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => addProduct(p)}
+                        style={[styles.pickerItem, isPhone && styles.pickerItemPhone, !!added && styles.pickerItemActive]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pickerName}>{p.name}</Text>
+                          <Text style={styles.pickerMeta}>
+                            {p.unit}
+                            {p.wholesaleEnabled ? '  · Bán sỉ' : ''}
                           </Text>
+                          {p.wholesaleEnabled && p.wholesaleTiers && p.wholesaleTiers.length > 0 && (
+                            <Text style={styles.pickerTiers}>
+                              {p.wholesaleTiers
+                                .sort((a, b) => a.minQty - b.minQty)
+                                .map((t) => `≥${t.minQty}: ${formatCurrency(t.price)}`)
+                                .join('  ·  ')}
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={{ fontWeight: '700', color: colors.primary, flexShrink: 0 }}>
+                          {formatCurrency(p.price)}
+                        </Text>
+                        {added ? (
+                          <View style={styles.pickerQty}>
+                            <Text style={styles.pickerQtyText}>{added.quantity}</Text>
+                          </View>
+                        ) : (
+                          <Icon name="plus-circle-outline" size={24} color={colors.primary} style={{ marginLeft: spacing.sm }} />
                         )}
-                      </View>
-                      <Text style={{ fontWeight: '700', color: colors.primary, flexShrink: 0 }}>
-                        {formatCurrency(p.price)}
-                      </Text>
-                    </Pressable>
-                  ))}
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </ScrollView>
             )}
             <View style={[styles.modalActions, isPhone && styles.modalActionsPhone]}>
-              <Button variant="ghost" onPress={() => setProductPickerFor(null)} style={{ flex: isPhone ? undefined : 1 }}>
-                Đóng
+              <Button
+                onPress={() => setProductPickerOpen(false)}
+                style={{ flex: isPhone ? undefined : 1 }}
+                leftIcon={<Icon name="check" size={18} color="#fff" />}
+              >
+                Xong
               </Button>
             </View>
           </View>
@@ -702,6 +751,43 @@ export function OrderCreateScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  // Bố cục 2 cột cho màn rộng (POS/tablet)
+  columns: { flexDirection: 'row', gap: spacing.lg, alignItems: 'flex-start' },
+  colLeft: { flex: 1, gap: spacing.lg },
+  colRight: { flex: 1.3, gap: spacing.lg },
+  // Tag chọn dịch vụ nhanh
+  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tag: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: spacing.md, paddingVertical: 10,
+    borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.primary,
+    backgroundColor: colors.primaryLight, maxWidth: '100%',
+  },
+  tagActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tagText: { fontSize: 14, fontWeight: '700', color: colors.primary, flexShrink: 1 },
+  tagTextActive: { color: '#fff' },
+  tagQty: {
+    minWidth: 22, height: 22, borderRadius: 11, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5,
+  },
+  tagQtyText: { fontSize: 12, fontWeight: '800', color: colors.primary },
+  tagMore: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: spacing.md, paddingVertical: 10,
+    borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed',
+    borderColor: colors.border, backgroundColor: colors.background,
+  },
+  tagMoreText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  itemIndex: { fontWeight: '700', color: colors.textMuted },
+  itemName: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
+  emptyCart: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
+  modalSubtitle: { fontSize: 13, color: colors.textMuted, marginTop: -8 },
+  pickerItemActive: { borderWidth: 1, borderColor: colors.primary },
+  pickerQty: {
+    minWidth: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, marginLeft: spacing.sm,
+  },
+  pickerQtyText: { fontSize: 12, fontWeight: '800', color: '#fff' },
   customerBox: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     padding: spacing.md, backgroundColor: colors.background,
@@ -720,33 +806,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: radius.md,
     borderWidth: 1, borderColor: colors.border,
-  },
-  pickProductBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    paddingHorizontal: spacing.sm, paddingVertical: 6,
-    backgroundColor: colors.card, borderRadius: radius.sm,
-    borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start',
-  },
-  pickProductBig: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    height: 48,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pickProductEmpty: {
-    borderStyle: 'dashed',
-  },
-  pickProductBigText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
   },
   removeBtn: {
     width: 32, height: 32, borderRadius: radius.sm,
