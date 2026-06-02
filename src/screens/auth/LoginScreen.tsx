@@ -13,8 +13,8 @@ import { BRAND_NAME } from '@/helpers/constants/brand';
 
 export function LoginScreen() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@laundry.local');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,13 +58,18 @@ export function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              autoComplete="email"
+              autoComplete="off"
+              textContentType="none"
+              importantForAutofill="no"
             />
             <Input
               label="Mật khẩu"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              autoComplete="off"
+              textContentType="none"
+              importantForAutofill="no"
             />
             {error && <Text style={styles.error}>{error}</Text>}
             <Button onPress={handleLogin} loading={loading} fullWidth size="lg">
