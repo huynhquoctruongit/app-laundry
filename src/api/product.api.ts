@@ -30,4 +30,7 @@ export const productApi = {
   update: (id: string, payload: Partial<ProductPayload>) =>
     unwrap<Product>(apiClient.patch(`/products/${id}`, payload)),
   remove: (id: string) => apiClient.delete(`/products/${id}`),
+  /** Cập nhật thứ tự ưu tiên hiển thị (mảng id theo thứ tự mong muốn) */
+  reorder: (ids: string[]) =>
+    unwrap<{ success: boolean }>(apiClient.patch('/products/reorder', { ids })),
 };

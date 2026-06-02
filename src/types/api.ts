@@ -56,6 +56,7 @@ export interface Product {
   wholesaleTiers?: WholesaleTier[] | null;
   isActive: boolean;
   hiddenFromBooking?: boolean;
+  sortOrder?: number;
   note?: string | null;
   createdAt: string;
   updatedAt: string;

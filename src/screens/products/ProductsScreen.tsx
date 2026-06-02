@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,7 +17,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/lib/utils';
-import type { Product, WholesaleTier } from '@/types/api';
+import type { Paginated, Product, WholesaleTier } from '@/types/api';
 
 // Form state for a wholesale tier row (strings for controlled inputs)
 interface TierRow { minQty: string; price: string }
@@ -53,6 +54,25 @@ export function ProductsScreen() {
     queryKey: ['products', { search }],
     queryFn: () => productApi.list({ search: search || undefined, pageSize: 100 }),
   });
+
+  const reorderMutation = useMutation({
+    mutationFn: (ids: string[]) => productApi.reorder(ids),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onError: (err) => {
+      Toast.show({ type: 'error', text1: extractError(err).message });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+
+  // Kéo-thả sắp xếp ưu tiên: chỉ bật khi có quyền sửa & KHÔNG đang tìm kiếm
+  const dragEnabled = canEdit && !search.trim();
+  const handleDragEnd = ({ data }: { data: Product[] }) => {
+    // Cập nhật cache ngay để giữ thứ tự mới, rồi lưu xuống server
+    queryClient.setQueryData<Paginated<Product>>(['products', { search }], (old) =>
+      old ? { ...old, items: data } : old,
+    );
+    reorderMutation.mutate(data.map((p) => p.id));
+  };
 
   function buildTiersPayload(): WholesaleTier[] | null {
     if (!wholesaleEnabled) return null;
@@ -216,57 +236,79 @@ export function ProductsScreen() {
       </View>
 
       {!canEdit && <ReadOnlyBanner />}
+      {dragEnabled && (
+        <Text style={styles.dragHint}>
+          Giữ và kéo biểu tượng ≡ để sắp xếp thứ tự ưu tiên (áp dụng khi tạo đơn)
+        </Text>
+      )}
 
-      <FlatList
+      <DraggableFlatList
         data={listQuery.data?.items ?? []}
         keyExtractor={(item) => item.id}
+        onDragEnd={handleDragEnd}
+        activationDistance={12}
         contentContainerStyle={{ padding: isPhone ? spacing.md : spacing.lg, gap: spacing.sm }}
         refreshing={listQuery.isFetching}
         onRefresh={() => listQuery.refetch()}
-        renderItem={({ item }) => (
-          <Pressable onPress={canEdit ? () => openEdit(item) : undefined}>
-            <Card>
-              <CardContent style={isPhone ? StyleSheet.flatten([styles.row, styles.rowPhone]) : styles.row}>
-                <View style={{ flex: isPhone ? undefined : 1, gap: 4 }}>
-                  <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text style={styles.name}>{item.name}</Text>
-                    {!item.isActive && <Badge bg={colors.dangerLight} fg={colors.danger}>Tạm ngưng</Badge>}
-                    {item.wholesaleEnabled && <Badge bg="#eff6ff" fg="#3b82f6">Bán sỉ</Badge>}
-                  </View>
-                  <Text style={styles.meta}>
-                    Đơn vị: {item.unit || '—'}
-                    {item.importPrice != null ? `  ·  Nhập: ${formatCurrency(item.importPrice)}` : ''}
-                    {item.costPrice != null ? `  ·  Vốn: ${formatCurrency(item.costPrice)}` : ''}
-                  </Text>
-                  {item.wholesaleEnabled && item.wholesaleTiers && item.wholesaleTiers.length > 0 && (
-                    <Text style={styles.tiersMeta}>
-                      Sỉ: {item.wholesaleTiers
-                        .sort((a, b) => a.minQty - b.minQty)
-                        .map((t) => `≥${t.minQty}: ${formatCurrency(t.price)}`)
-                        .join('  ·  ')}
-                    </Text>
-                  )}
-                </View>
-                <View style={{ alignItems: isPhone ? 'stretch' : 'flex-end', gap: 4 }}>
-                  <Text style={styles.price}>{formatCurrency(item.price)}</Text>
-                  {(canEdit || canDelete) && (
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      {canEdit && (
-                        <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-                          <Icon name="pencil" size={18} color={colors.textMuted} />
-                        </Pressable>
-                      )}
-                      {canDelete && (
-                        <Pressable onPress={() => confirmDelete(item)} style={styles.iconBtn}>
-                          <Icon name="trash-can-outline" size={18} color={colors.danger} />
-                        </Pressable>
-                      )}
+        renderItem={({ item, drag, isActive }: RenderItemParams<Product>) => (
+          <ScaleDecorator>
+            <Pressable
+              onPress={canEdit ? () => openEdit(item) : undefined}
+              disabled={isActive}
+            >
+              <Card>
+                <CardContent style={isPhone ? StyleSheet.flatten([styles.row, styles.rowPhone]) : styles.row}>
+                  <View style={{ flex: isPhone ? undefined : 1, gap: 4 }}>
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Text style={styles.name}>{item.name}</Text>
+                      {!item.isActive && <Badge bg={colors.dangerLight} fg={colors.danger}>Tạm ngưng</Badge>}
+                      {item.wholesaleEnabled && <Badge bg="#eff6ff" fg="#3b82f6">Bán sỉ</Badge>}
                     </View>
-                  )}
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+                    <Text style={styles.meta}>
+                      Đơn vị: {item.unit || '—'}
+                      {item.importPrice != null ? `  ·  Nhập: ${formatCurrency(item.importPrice)}` : ''}
+                      {item.costPrice != null ? `  ·  Vốn: ${formatCurrency(item.costPrice)}` : ''}
+                    </Text>
+                    {item.wholesaleEnabled && item.wholesaleTiers && item.wholesaleTiers.length > 0 && (
+                      <Text style={styles.tiersMeta}>
+                        Sỉ: {item.wholesaleTiers
+                          .sort((a, b) => a.minQty - b.minQty)
+                          .map((t) => `≥${t.minQty}: ${formatCurrency(t.price)}`)
+                          .join('  ·  ')}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: isPhone ? 'stretch' : 'flex-end', gap: 4 }}>
+                    <Text style={styles.price}>{formatCurrency(item.price)}</Text>
+                    {(dragEnabled || canEdit || canDelete) && (
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                        {dragEnabled && (
+                          <Pressable
+                            onLongPress={drag}
+                            delayLongPress={120}
+                            hitSlop={8}
+                            style={styles.iconBtn}
+                          >
+                            <Icon name="drag-horizontal-variant" size={20} color={colors.textMuted} />
+                          </Pressable>
+                        )}
+                        {canEdit && (
+                          <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
+                            <Icon name="pencil" size={18} color={colors.textMuted} />
+                          </Pressable>
+                        )}
+                        {canDelete && (
+                          <Pressable onPress={() => confirmDelete(item)} style={styles.iconBtn}>
+                            <Icon name="trash-can-outline" size={18} color={colors.danger} />
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </CardContent>
+              </Card>
+            </Pressable>
+          </ScaleDecorator>
         )}
         ListEmptyComponent={!listQuery.isLoading ? <EmptyState title="Chưa có dịch vụ" /> : null}
       />
@@ -440,6 +482,12 @@ const styles = StyleSheet.create({
   meta: { fontSize: 13, color: colors.textMuted },
   tiersMeta: { fontSize: 12, color: '#3b82f6', marginTop: 2 },
   price: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  dragHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+  },
   iconBtn: {
     width: 32,
     height: 32,
