@@ -51,7 +51,7 @@ export function OrderCreateScreen() {
   const isEditMode = !!editId;
 
   const queryClient = useQueryClient();
-  const { canCreate } = usePermissions();
+  const { canCreateOrder } = usePermissions();
   const { isPhone } = useResponsive();
 
   const [customerId, setCustomerId] = useState('');
@@ -269,12 +269,12 @@ export function OrderCreateScreen() {
     }
   }
 
-  if (!canCreate) {
+  if (!canCreateOrder) {
     return (
       <View style={[styles.container, { padding: spacing.xl }]}>
         <EmptyState
           title="Không có quyền truy cập"
-          description="Chỉ quản lý mới có quyền tạo đơn hàng. Vui lòng liên hệ quản lý."
+          description="Bạn chưa được cấp quyền tạo đơn hàng. Vui lòng liên hệ quản lý để được bật quyền này."
           icon={<Icon name="lock-outline" size={48} color={colors.textMuted} />}
         />
         <Button variant="outline" onPress={() => navigation.goBack()}>

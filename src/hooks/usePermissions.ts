@@ -11,9 +11,13 @@ import { useAuth } from '@/hooks/useAuth';
 export function usePermissions() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const perms = user?.permissions ?? {};
+  // Admin toàn quyền; nhân viên theo quyền được cấp ở màn "Nhân viên"
+  const can = (key: string) => isAdmin || perms[key] === true;
 
   return {
     isAdmin,
+    // canCreate vẫn mở khoá các MÀN QUẢN TRỊ (dịch vụ, NCC, kho, thu chi) → giữ admin-only
     canCreate: isAdmin,
     canEdit: isAdmin,
     canDelete: isAdmin,
@@ -21,5 +25,7 @@ export function usePermissions() {
     canChangeStatus: isAdmin,
     // Nhân viên được phép bấm "Hoàn thành" (READY → DELIVERED)
     canCompleteOrder: true,
+    // Tạo đơn: admin luôn được; nhân viên cần bật quyền "Tạo đơn hàng" (ORDER_CREATE)
+    canCreateOrder: can('ORDER_CREATE'),
   };
 }

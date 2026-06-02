@@ -30,7 +30,7 @@ const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
 
 export function OrdersScreen() {
   const navigation = useNavigation<any>();
-  const { canCreate } = usePermissions();
+  const { canCreateOrder } = usePermissions();
   const { isPhone } = useResponsive();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
@@ -97,7 +97,7 @@ export function OrdersScreen() {
             />
           </View>
         </View>
-        {canCreate && (
+        {canCreateOrder && (
           <Button
             onPress={() => navigation.navigate('OrderCreate')}
             leftIcon={<Icon name="plus" size={20} color="#fff" />}
