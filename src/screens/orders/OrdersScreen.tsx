@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -31,6 +31,7 @@ const STATUS_FILTERS: { value: OrderStatus | 'ALL' | 'BOOKING'; label: string }[
 
 export function OrdersScreen() {
   const navigation = useNavigation<any>();
+  const queryClient = useQueryClient();
   const { canCreateOrder } = usePermissions();
   const { isPhone } = useResponsive();
   const [search, setSearch] = useState('');
@@ -74,6 +75,13 @@ export function OrdersScreen() {
     ordersQuery.refetch();
     countsQuery.refetch();
   };
+
+  // Mỗi lần màn được focus (vd quay lại sau khi chuyển đơn/đổi trạng thái) → làm mới
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }, [queryClient]),
+  );
 
   const handleEndReached = () => {
     if (ordersQuery.hasNextPage && !ordersQuery.isFetchingNextPage) {
