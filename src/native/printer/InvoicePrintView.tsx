@@ -109,6 +109,7 @@ export function InvoicePrintView({ order, settings }: Props) {
       <View style={s.row}>
         <Text style={[s.col1, s.bold]}>Dịch vụ</Text>
         <Text style={[s.col2, s.bold]}>SL</Text>
+        <Text style={[s.colP, s.bold]}>Đơn giá</Text>
         <Text style={[s.col3, s.bold]}>Thành tiền</Text>
       </View>
       <Divider />
@@ -121,7 +122,8 @@ export function InvoicePrintView({ order, settings }: Props) {
           <View key={i} style={s.row}>
             <Text style={s.col1}>{i + 1}.{it.name}</Text>
             <Text style={s.col2}>{sl}</Text>
-            <Text style={s.col3}>{money(sub)}</Text>
+            <Text style={s.colP} numberOfLines={1} adjustsFontSizeToFit>{money(Number(it.unitPrice))}</Text>
+            <Text style={s.col3} numberOfLines={1} adjustsFontSizeToFit>{money(sub)}</Text>
           </View>
         );
       })}
@@ -186,8 +188,9 @@ function clamp(n: number, min: number, max: number): number {
 
 /** Styles theo cỡ chữ FONT (px trong ảnh 384) — cột co theo font để không tràn */
 function makeStyles(FONT: number) {
-  const col2W = Math.round(FONT * 3.2); // cột SL
-  const col3W = Math.round(FONT * 6);   // cột Thành tiền
+  const col2W = Math.round(FONT * 3.6); // cột SL (kèm kg)
+  const colPW = Math.round(FONT * 4.6); // cột Đơn giá
+  const col3W = Math.round(FONT * 5.2); // cột Thành tiền
   return StyleSheet.create({
     paper: {
       width: PRINT_WIDTH_PX,
@@ -257,6 +260,7 @@ function makeStyles(FONT: number) {
     row: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 1 },
     col1: { flex: 1, fontSize: FONT, color: '#000', flexWrap: 'wrap' },
     col2: { width: col2W, textAlign: 'center', fontSize: FONT, color: '#000' },
+    colP: { width: colPW, textAlign: 'right', fontSize: FONT, color: '#000' },
     col3: { width: col3W, textAlign: 'right', fontSize: FONT, color: '#000' },
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 1 },
     totalLabel: { fontSize: FONT, color: '#000' },
