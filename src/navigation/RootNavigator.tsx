@@ -15,7 +15,7 @@ export type RootStackParamList = {
   Login: undefined;
   Main: undefined;
   OrderDetail: { id: string; autoPrint?: boolean };
-  OrderCreate: { editId?: string } | undefined;
+  OrderCreate: { editId?: string; convertBookingId?: string } | undefined;
   BookingDetail: { id: string };
   Scanner: undefined;
 };
@@ -53,7 +53,11 @@ export function RootNavigator({ navigationRef }: Props) {
               component={OrderCreateScreen}
               options={({ route }) => ({
                 headerShown: true,
-                title: (route.params as any)?.editId ? 'Sửa đơn' : 'Tạo đơn mới',
+                title: (route.params as any)?.convertBookingId
+                  ? 'Chuyển thành đơn'
+                  : (route.params as any)?.editId
+                    ? 'Sửa đơn'
+                    : 'Tạo đơn mới',
               })}
             />
             <Stack.Screen

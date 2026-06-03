@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { orderApi } from '@/api/order.api';
 import { customerApi } from '@/api/customer.api';
 import { productApi } from '@/api/product.api';
+import { bookingApi } from '@/api/booking.api';
 import { useResponsive } from '@/hooks/useResponsive';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -41,6 +42,8 @@ export function OrderCreateScreen() {
   const route = useRoute<any>();
   const editId: string | undefined = route.params?.editId;
   const isEditMode = !!editId;
+  const convertId: string | undefined = route.params?.convertBookingId;
+  const isConvertMode = !!convertId;
 
   const queryClient = useQueryClient();
   const { canCreateOrder } = usePermissions();
@@ -53,6 +56,12 @@ export function OrderCreateScreen() {
     queryKey: ['order', editId],
     queryFn: () => orderApi.detail(editId!),
     enabled: isEditMode,
+  });
+  // Convert: tải đặt lịch để pre-fill (sửa kg / thêm-xoá dịch vụ như tạo đơn mới)
+  const convertQuery = useQuery({
+    queryKey: ['booking', convertId],
+    queryFn: () => bookingApi.detail(convertId!),
+    enabled: isConvertMode,
   });
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
@@ -142,6 +151,38 @@ export function OrderCreateScreen() {
       Toast.show({ type: 'error', text1: extractError(err).message }),
   });
 
+  const convertMutation = useMutation({
+    mutationFn: () =>
+      bookingApi.convert(convertId!, {
+        items: items.map((i) => ({
+          productId: i.productId || undefined,
+          name: i.name,
+          quantity: Number(i.quantity),
+          weight: i.weight ? Number(i.weight) : undefined,
+          unitPrice: Number(i.unitPrice),
+        })),
+        note: note || undefined,
+        pickupAt: pickupAt ? pickupAt.toISOString() : undefined,
+      }),
+    onSuccess: (booking) => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['booking', convertId] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+      Toast.show({ type: 'success', text1: `Đã tạo đơn từ ${booking.code}` });
+      if (booking.convertedOrderId) {
+        navigation.replace('OrderDetail', {
+          id: booking.convertedOrderId,
+          autoPrint: true,
+        });
+      } else {
+        navigation.goBack();
+      }
+    },
+    onError: (err) =>
+      Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+
   // Pre-fill form khi edit
   useEffect(() => {
     const o = editQuery.data;
@@ -160,10 +201,39 @@ export function OrderCreateScreen() {
     );
   }, [editQuery.data]);
 
-  const customer = useMemo<Customer | undefined>(
-    () => customersQuery.data?.items.find((c) => c.id === customerId),
-    [customersQuery.data, customerId],
-  );
+  // Pre-fill khi chuyển đặt lịch → đơn (dịch vụ khách đã chọn, sửa thoải mái)
+  useEffect(() => {
+    const b = convertQuery.data;
+    if (!b) return;
+    setCustomerId(b.customer?.id ?? '');
+    setNote(b.note ?? '');
+    setPickupAt(b.pickupAt ? new Date(b.pickupAt) : null);
+    setItems(
+      b.items.map((it) => ({
+        productId: it.productId ?? undefined,
+        name: it.name,
+        quantity: String(it.quantity),
+        weight: it.weight != null ? String(it.weight) : '',
+        unitPrice: String(it.unitPrice),
+      })),
+    );
+  }, [convertQuery.data]);
+
+  const customer = useMemo<Customer | undefined>(() => {
+    const found = customersQuery.data?.items.find((c) => c.id === customerId);
+    if (found) return found;
+    // Convert: khách của đặt lịch có thể không nằm trong 100 KH đầu → dùng dữ liệu booking
+    const b = convertQuery.data;
+    if (isConvertMode && b) {
+      return {
+        id: b.customer?.id ?? '',
+        name: b.customer?.name ?? '—',
+        phone: b.phone ?? null,
+        address: b.address ?? null,
+      } as unknown as Customer;
+    }
+    return undefined;
+  }, [customersQuery.data, customerId, isConvertMode, convertQuery.data]);
 
   const total = useMemo(
     () => items.reduce((sum, i) => sum + calcLineTotal(i), 0),
@@ -243,7 +313,7 @@ export function OrderCreateScreen() {
   }
 
   function handleSubmit() {
-    if (!customerId) {
+    if (!isConvertMode && !customerId) {
       Toast.show({ type: 'error', text1: 'Vui lòng chọn khách hàng' });
       return;
     }
@@ -262,7 +332,9 @@ export function OrderCreateScreen() {
         return;
       }
     }
-    if (isEditMode) {
+    if (isConvertMode) {
+      convertMutation.mutate();
+    } else if (isEditMode) {
       updateOrderMutation.mutate();
     } else {
       createOrderMutation.mutate();
@@ -313,9 +385,11 @@ export function OrderCreateScreen() {
                       <Text style={styles.customerMeta}>{customer.address}</Text>
                     )}
                   </View>
-                  <Button variant="outline" size="sm" onPress={() => setCustomerPickerOpen(true)}>
-                    Đổi
-                  </Button>
+                  {!isConvertMode && (
+                    <Button variant="outline" size="sm" onPress={() => setCustomerPickerOpen(true)}>
+                      Đổi
+                    </Button>
+                  )}
                 </View>
               ) : (
                 <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
@@ -737,11 +811,17 @@ export function OrderCreateScreen() {
         <Button
           size="lg"
           onPress={handleSubmit}
-          loading={isEditMode ? updateOrderMutation.isPending : createOrderMutation.isPending}
+          loading={
+            isConvertMode
+              ? convertMutation.isPending
+              : isEditMode
+                ? updateOrderMutation.isPending
+                : createOrderMutation.isPending
+          }
           style={{ flex: isPhone ? undefined : 2 }}
           leftIcon={<Icon name="check" size={22} color="#fff" />}
         >
-          {isEditMode ? 'Lưu thay đổi' : 'Tạo đơn'}
+          {isConvertMode ? 'Tạo đơn từ đặt lịch' : isEditMode ? 'Lưu thay đổi' : 'Tạo đơn'}
         </Button>
       </View>
     </View>

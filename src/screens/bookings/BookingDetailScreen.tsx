@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { BookingStatusBadge } from '@/components/common/BookingStatusBadge';
-import { bookingApi, type BookingItemPayload, type UpdateBookingPayload } from '@/api/booking.api';
+import { bookingApi, type UpdateBookingPayload } from '@/api/booking.api';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { colors } from '@/theme/colors';
@@ -26,14 +26,6 @@ import { calcLineTotal, formatCurrency, formatDateTime } from '@/lib/utils';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 
 type R = RouteProp<RootStackParamList, 'BookingDetail'>;
-
-interface ConvertItem {
-  productId?: string | null;
-  name: string;
-  quantity: string;
-  weight: string;
-  unitPrice: string;
-}
 
 export function BookingDetailScreen() {
   const route = useRoute<R>();
@@ -46,11 +38,6 @@ export function BookingDetailScreen() {
     queryKey: ['booking', id],
     queryFn: () => bookingApi.detail(id),
   });
-
-  const [convertOpen, setConvertOpen] = useState(false);
-  const [convertItems, setConvertItems] = useState<ConvertItem[]>([]);
-  const [discount, setDiscount] = useState('0');
-  const [convertNote, setConvertNote] = useState('');
 
   // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
@@ -114,62 +101,6 @@ export function BookingDetailScreen() {
     );
   }
 
-  const convertMutation = useMutation({
-    mutationFn: () => {
-      const items: BookingItemPayload[] = convertItems.map((i) => ({
-        productId: i.productId || undefined,
-        name: i.name,
-        quantity: Number(i.quantity),
-        weight: i.weight ? Number(i.weight) : undefined,
-        unitPrice: Number(i.unitPrice),
-      }));
-      return bookingApi.convert(id, {
-        items,
-        note: convertNote || undefined,
-        discountAmount: Number(discount) || 0,
-      });
-    },
-    onSuccess: (data) => {
-      Toast.show({ type: 'success', text1: `Đã tạo đơn từ ${data.code}` });
-      queryClient.invalidateQueries({ queryKey: ['booking', id] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      setConvertOpen(false);
-      if (data.convertedOrder) {
-        navigation.replace('OrderDetail', {
-          id: data.convertedOrderId!,
-          autoPrint: true,
-        });
-      }
-    },
-    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
-  });
-
-  function openConvert() {
-    if (!bookingQuery.data) return;
-    setConvertItems(
-      bookingQuery.data.items.map((it) => ({
-        productId: it.productId ?? undefined,
-        name: it.name,
-        quantity: String(it.quantity),
-        weight: it.weight != null ? String(it.weight) : '',
-        unitPrice: String(it.unitPrice),
-      })),
-    );
-    setDiscount('0');
-    setConvertNote(bookingQuery.data.note ?? '');
-    setConvertOpen(true);
-  }
-
-  function updateConvertItem(i: number, patch: Partial<ConvertItem>) {
-    setConvertItems((arr) => arr.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  }
-
-  const convertTotal = useMemo(
-    () => convertItems.reduce((sum, i) => sum + calcLineTotal(i), 0),
-    [convertItems],
-  );
-  const convertRemaining = convertTotal - (Number(discount) || 0);
 
   if (bookingQuery.isLoading) {
     return (
@@ -259,7 +190,7 @@ export function BookingDetailScreen() {
           {canConvert && (
             <Button
               variant="success"
-              onPress={openConvert}
+              onPress={() => navigation.navigate('OrderCreate', { convertBookingId: id })}
               leftIcon={<Icon name="package-variant-closed" size={20} color="#fff" />}
               style={{ flex: 1, minWidth: 200 }}
             >
@@ -325,108 +256,6 @@ export function BookingDetailScreen() {
         </View>
       </Modal>
 
-      {/* Convert modal */}
-      <Modal
-        visible={convertOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setConvertOpen(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Chuyển booking thành đơn</Text>
-            <Text style={styles.modalSub}>
-              Kiểm tra lại dịch vụ & giá. Khi tạo đơn, booking sẽ chuyển trạng thái Đã tạo đơn.
-            </Text>
-            <ScrollView style={{ maxHeight: 440 }}>
-              <View style={{ gap: spacing.sm }}>
-                {convertItems.map((it, i) => (
-                  <View key={i} style={styles.itemCard}>
-                    <Input
-                      label="Tên dịch vụ"
-                      value={it.name}
-                      onChangeText={(v) => updateConvertItem(i, { name: v })}
-                    />
-                    <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                      <View style={{ flex: 1 }}>
-                        <Input
-                          label="SL"
-                          value={it.quantity}
-                          onChangeText={(v) => updateConvertItem(i, { quantity: v.replace(/[^0-9]/g, '') })}
-                          onBlur={() => {
-                            const q = parseInt(it.quantity, 10);
-                            if (!q || q < 1) updateConvertItem(i, { quantity: '1' });
-                          }}
-                          keyboardType="number-pad"
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Input
-                          label="Cân (kg)"
-                          value={it.weight}
-                          onChangeText={(v) => updateConvertItem(i, { weight: v.replace(',', '.') })}
-                          keyboardType="decimal-pad"
-                          placeholder="—"
-                        />
-                      </View>
-                      <View style={{ flex: 2 }}>
-                        <Input
-                          label="Đơn giá"
-                          value={it.unitPrice}
-                          onChangeText={(v) => updateConvertItem(i, { unitPrice: v })}
-                          keyboardType="numeric"
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.subtotalRow}>
-                      <Text style={{ color: colors.textMuted, fontSize: 13 }}>Thành tiền</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
-                        {formatCurrency(calcLineTotal(it))}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-                <Input
-                  label="Giảm giá"
-                  value={discount}
-                  onChangeText={setDiscount}
-                  keyboardType="numeric"
-                />
-                <Input
-                  label="Ghi chú"
-                  value={convertNote}
-                  onChangeText={setConvertNote}
-                  multiline
-                  numberOfLines={2}
-                />
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Tổng</Text>
-                  <Text style={styles.totalValue}>{formatCurrency(convertTotal)}</Text>
-                </View>
-                <View style={styles.totalRow}>
-                  <Text style={[styles.totalLabel, { color: colors.primary }]}>Còn phải thu</Text>
-                  <Text style={[styles.totalValue, { color: colors.primary }]}>
-                    {formatCurrency(convertRemaining)}
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <Button variant="ghost" onPress={() => setConvertOpen(false)} style={{ flex: 1 }}>
-                Huỷ
-              </Button>
-              <Button
-                onPress={() => convertMutation.mutate()}
-                loading={convertMutation.isPending}
-                style={{ flex: 2 }}
-                leftIcon={<Icon name="check" size={20} color="#fff" />}
-              >
-                Tạo đơn ngay
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
