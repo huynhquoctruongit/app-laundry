@@ -244,9 +244,9 @@ export function BookingDetailScreen() {
       </Card>
 
       {/* Actions */}
-      {canModerate && (
+      {(canModerate || canConvert) && (
         <View style={{ flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap' }}>
-          {b.status === 'PENDING' && (
+          {canModerate && b.status === 'PENDING' && (
             <Button
               onPress={() => statusMutation.mutate('CONFIRMED')}
               loading={statusMutation.isPending}
@@ -266,15 +266,17 @@ export function BookingDetailScreen() {
               Chuyển thành đơn
             </Button>
           )}
-          <Button
-            variant="destructive"
-            onPress={() => statusMutation.mutate('CANCELLED')}
-            loading={statusMutation.isPending}
-            leftIcon={<Icon name="close" size={20} color="#fff" />}
-            style={{ flex: 1, minWidth: 160 }}
-          >
-            Từ chối
-          </Button>
+          {canModerate && (
+            <Button
+              variant="destructive"
+              onPress={() => statusMutation.mutate('CANCELLED')}
+              loading={statusMutation.isPending}
+              leftIcon={<Icon name="close" size={20} color="#fff" />}
+              style={{ flex: 1, minWidth: 160 }}
+            >
+              Từ chối
+            </Button>
+          )}
         </View>
       )}
 
