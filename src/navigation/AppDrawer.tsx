@@ -23,6 +23,7 @@ import { SuppliersScreen } from '@/screens/suppliers/SuppliersScreen';
 import { InventoryScreen } from '@/screens/inventory/InventoryScreen';
 import { FinanceScreen } from '@/screens/finance/FinanceScreen';
 import { DebtsScreen } from '@/screens/debts/DebtsScreen';
+import { DebtScreen } from '@/screens/debts/DebtScreen';
 import { ShiftsScreen } from '@/screens/shifts/ShiftsScreen';
 import { ReportsScreen } from '@/screens/reports/ReportsScreen';
 import { StaffScreen } from '@/screens/staff/StaffScreen';
@@ -37,6 +38,7 @@ const NAV_ITEMS: { name: string; label: string; component: React.ComponentType<a
   { name: 'Orders', label: 'Đơn hàng', component: OrdersScreen, icon: 'package-variant' },
   { name: 'Audit', label: 'Rà soát đơn', component: OrderAuditScreen, icon: 'magnify-scan' },
   { name: 'Bookings', label: 'Đặt lịch', component: BookingsScreen, icon: 'calendar-clock' },
+  { name: 'OrderDebts', label: 'Đơn nợ', component: DebtScreen, icon: 'cash-clock' },
   { name: 'Customers', label: 'Khách hàng', component: CustomersScreen, icon: 'account-group' },
   { name: 'Suppliers', label: 'Nhà cung cấp', component: SuppliersScreen, icon: 'truck-delivery' },
   { name: 'Products', label: 'Dịch vụ', component: ProductsScreen, icon: 'tag-multiple' },

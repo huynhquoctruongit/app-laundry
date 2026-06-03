@@ -7,6 +7,7 @@ export interface OrderListQuery {
   customerId?: string;
   assignedToId?: string;
   fromBooking?: boolean;
+  debt?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -51,6 +52,9 @@ export const orderApi = {
     unwrap<Order>(apiClient.patch(`/orders/${id}`, payload)),
   updateStatus: (id: string, status: string) =>
     unwrap<Order>(apiClient.patch(`/orders/${id}/status`, { status })),
+  /** Đánh dấu thu tiền: paid=false → đơn nợ (treo); paid=true → đã thanh toán */
+  setPayment: (id: string, paid: boolean) =>
+    unwrap<Order>(apiClient.patch(`/orders/${id}/payment`, { paid })),
   assign: (id: string, assignedToId: string | null) =>
     unwrap<Order>(apiClient.patch(`/orders/${id}/assign`, { assignedToId })),
   remove: (id: string) => apiClient.delete(`/orders/${id}`),

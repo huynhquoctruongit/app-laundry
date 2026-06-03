@@ -82,6 +82,9 @@ export interface Order {
   note?: string | null;
   pickupAt?: string | null;
   deliveredAt?: string | null;
+  paidAt?: string | null;
+  /** Đơn nợ = đã giao nhưng chưa thu tiền (treo, chưa vào lợi nhuận) */
+  isDebt?: boolean;
   customerId: string;
   customer?: { id: string; name: string; phone?: string; address?: string | null } | null;
   createdById?: string | null;

@@ -60,6 +60,21 @@ export function OrderDetailScreen() {
     onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
   });
 
+  // Đánh dấu nợ (paid=false) / đã thanh toán (paid=true)
+  const paymentMutation = useMutation({
+    mutationFn: (paid: boolean) => orderApi.setPayment(id, paid),
+    onSuccess: (data) => {
+      Toast.show({
+        type: 'success',
+        text1: data.isDebt ? 'Đã đánh dấu đơn NỢ' : 'Đã thu tiền — cộng vào lợi nhuận',
+      });
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['report'] });
+    },
+    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => orderApi.remove(id),
     onSuccess: () => {
@@ -132,6 +147,12 @@ export function OrderDetailScreen() {
         <CardHeader style={styles.cardHeader}>
           <CardTitle>{order.code}</CardTitle>
           <OrderStatusBadge status={order.status} />
+          {order.isDebt && (
+            <View style={styles.debtChip}>
+              <Icon name="cash-clock" size={13} color={colors.danger} />
+              <Text style={styles.debtChipText}>NỢ</Text>
+            </View>
+          )}
           {order.fromBooking && (
             <View style={styles.bookingChip}>
               <Icon name="truck-fast" size={13} color="#0369a1" />
@@ -184,6 +205,50 @@ export function OrderDetailScreen() {
           )}
         </CardContent>
       </Card>
+
+      {/* Thanh toán / Công nợ — chỉ với đơn ĐÃ GIAO */}
+      {order.status === 'DELIVERED' && (
+        <Card>
+          <CardHeader><CardTitle>Thanh toán</CardTitle></CardHeader>
+          <CardContent style={{ gap: spacing.md }}>
+            {order.isDebt ? (
+              <>
+                <View style={styles.debtBanner}>
+                  <Icon name="alert-circle-outline" size={18} color={colors.danger} />
+                  <Text style={styles.debtBannerText}>
+                    Đơn đang NỢ {formatCurrency(order.totalAmount)} — chưa cộng vào lợi nhuận
+                  </Text>
+                </View>
+                <Button
+                  size="lg"
+                  onPress={() => paymentMutation.mutate(true)}
+                  loading={paymentMutation.isPending}
+                  leftIcon={<Icon name="cash-check" size={20} color="#fff" />}
+                  fullWidth
+                >
+                  Đã thanh toán
+                </Button>
+              </>
+            ) : (
+              <>
+                <View style={styles.paidBanner}>
+                  <Icon name="check-circle-outline" size={18} color={colors.success} />
+                  <Text style={styles.paidBannerText}>Đã thu tiền — đã cộng vào lợi nhuận</Text>
+                </View>
+                <Button
+                  variant="outline"
+                  onPress={() => paymentMutation.mutate(false)}
+                  loading={paymentMutation.isPending}
+                  leftIcon={<Icon name="cash-clock" size={20} color={colors.danger} />}
+                  fullWidth
+                >
+                  Đánh dấu đơn nợ (chưa thu tiền)
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Actions */}
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
@@ -332,6 +397,22 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   bookingChipText: { fontSize: 12, fontWeight: '700', color: '#0369a1' },
+  debtChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.dangerLight, borderRadius: 99,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  debtChipText: { fontSize: 12, fontWeight: '800', color: colors.danger, letterSpacing: 0.5 },
+  debtBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.dangerLight, borderRadius: radius.md, padding: spacing.md,
+  },
+  debtBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.danger },
+  paidBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.successLight, borderRadius: radius.md, padding: spacing.md,
+  },
+  paidBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.success },
   footer: {
     padding: spacing.lg,
     paddingBottom: spacing.xl,
