@@ -121,7 +121,7 @@ export function InvoicePrintView({ order, settings }: Props) {
         return (
           <View key={i} style={s.row}>
             <Text style={s.col1}>{i + 1}.{it.name}</Text>
-            <Text style={s.col2}>{sl}</Text>
+            <Text style={s.col2} numberOfLines={1} adjustsFontSizeToFit>{sl}</Text>
             <Text style={s.colP} numberOfLines={1} adjustsFontSizeToFit>{money(Number(it.unitPrice))}</Text>
             <Text style={s.col3} numberOfLines={1} adjustsFontSizeToFit>{money(sub)}</Text>
           </View>
@@ -188,8 +188,8 @@ function clamp(n: number, min: number, max: number): number {
 
 /** Styles theo cỡ chữ FONT (px trong ảnh 384) — cột co theo font để không tràn */
 function makeStyles(FONT: number) {
-  const col2W = Math.round(FONT * 3.6); // cột SL (kèm kg)
-  const colPW = Math.round(FONT * 4.6); // cột Đơn giá
+  const col2W = Math.round(FONT * 4.4); // cột SL (kèm kg) — đủ rộng cho "1(5.5kg)"
+  const colPW = Math.round(FONT * 4.3); // cột Đơn giá
   const col3W = Math.round(FONT * 5.2); // cột Thành tiền
   return StyleSheet.create({
     paper: {
