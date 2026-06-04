@@ -100,6 +100,18 @@ export function OrderDetailScreen() {
     );
   }
 
+  // Lỡ bấm "Đã giao" → quay về Đã giặt (trừ lại tiền khỏi lợi nhuận)
+  function confirmRevert() {
+    Alert.alert(
+      'Quay về Đã giặt',
+      'Đơn này lỡ bấm "Đã giao"? Khi quay về Đã giặt, tiền sẽ được TRỪ khỏi lợi nhuận.',
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Quay về Đã giặt', style: 'destructive', onPress: () => statusMutation.mutate('READY') },
+      ],
+    );
+  }
+
   if (orderQuery.isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -252,6 +264,18 @@ export function OrderDetailScreen() {
                 </Button>
               </>
             )}
+
+            {/* Lỡ bấm "Đã giao" → quay về Đã giặt (trừ lại lợi nhuận) */}
+            <Button
+              variant="outline"
+              onPress={confirmRevert}
+              loading={statusMutation.isPending}
+              leftIcon={<Icon name="undo-variant" size={20} color={colors.warning} />}
+              style={{ borderColor: colors.warning }}
+              fullWidth
+            >
+              <Text style={{ color: colors.warning, fontWeight: '600' }}>Quay về Đã giặt</Text>
+            </Button>
           </CardContent>
         </Card>
       )}
