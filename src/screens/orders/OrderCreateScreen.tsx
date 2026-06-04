@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -20,6 +21,7 @@ import { orderApi } from '@/api/order.api';
 import { customerApi } from '@/api/customer.api';
 import { productApi } from '@/api/product.api';
 import { bookingApi } from '@/api/booking.api';
+import { settingsApi } from '@/api/settings.api';
 import { useResponsive } from '@/hooks/useResponsive';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -36,6 +38,11 @@ interface DraftItem {
   weight: string;
   unitPrice: string;
 }
+
+/** Tên dòng phí giao hàng — thêm vào items khi tích "Giao hàng tận nhà".
+ *  Lưu thành 1 dòng để totalAmount (backend tính theo items) tự cộng phí ship
+ *  và hoá đơn in ra hiển thị rõ khoản này. */
+const SHIP_ITEM_NAME = 'Phí giao hàng';
 
 export function OrderCreateScreen() {
   const navigation = useNavigation<any>();
@@ -79,6 +86,8 @@ export function OrderCreateScreen() {
   const [note, setNote] = useState('');
   const [pickupAt, setPickupAt] = useState<Date | null>(null);
   const [showPickupPicker, setShowPickupPicker] = useState(false);
+  // Giao hàng tận nhà: tích → cộng phí ship (lấy từ cài đặt) vào tổng đơn
+  const [hasDelivery, setHasDelivery] = useState(false);
 
   const customersQuery = useQuery({
     queryKey: ['customers', 'pick', { search: customerSearch }],
@@ -90,6 +99,18 @@ export function OrderCreateScreen() {
     queryKey: ['products', 'active'],
     queryFn: () => productApi.list({ isActive: true, pageSize: 200 }),
   });
+
+  const settingsQuery = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  });
+
+  // Đơn từ đặt lịch (convert hoặc đang sửa đơn fromBooking) đã tự cộng phí ship
+  // ở hoá đơn → KHÔNG hiện toggle giao hàng để tránh tính 2 lần.
+  const showDeliveryToggle = !isConvertMode && !editQuery.data?.fromBooking;
+  // Phí ship lấy từ cài đặt; deliveryFee = phí thực tế cộng khi đã tích giao hàng
+  const shipFee = Number(settingsQuery.data?.bookingShippingFee ?? 0);
+  const deliveryFee = showDeliveryToggle && hasDelivery && shipFee > 0 ? shipFee : 0;
 
   const createCustomerMutation = useMutation({
     mutationFn: () =>
@@ -116,13 +137,19 @@ export function OrderCreateScreen() {
     customerId,
     note: note || undefined,
     pickupAt: pickupAt ? pickupAt.toISOString() : undefined,
-    items: items.map((i) => ({
-      productId: i.productId || undefined,
-      name: i.name,
-      quantity: Number(i.quantity),
-      weight: i.weight ? Number(i.weight) : undefined,
-      unitPrice: Number(i.unitPrice),
-    })),
+    items: [
+      ...items.map((i) => ({
+        productId: i.productId || undefined,
+        name: i.name,
+        quantity: Number(i.quantity),
+        weight: i.weight ? Number(i.weight) : undefined,
+        unitPrice: Number(i.unitPrice),
+      })),
+      // Tích "Giao hàng tận nhà" → thêm 1 dòng phí ship (backend tính total theo items)
+      ...(deliveryFee > 0
+        ? [{ name: SHIP_ITEM_NAME, quantity: 1, unitPrice: deliveryFee }]
+        : []),
+    ],
   });
 
   const createOrderMutation = useMutation({
@@ -190,14 +217,18 @@ export function OrderCreateScreen() {
     setCustomerId(o.customer?.id ?? '');
     setNote(o.note ?? '');
     setPickupAt(o.pickupAt ? new Date(o.pickupAt) : null);
+    // Tách dòng phí ship (nếu có) ra khỏi giỏ + bật lại toggle giao hàng
+    setHasDelivery(o.items.some((it) => it.name === SHIP_ITEM_NAME));
     setItems(
-      o.items.map((it) => ({
-        productId: it.productId ?? undefined,
-        name: it.name,
-        quantity: String(it.quantity),
-        weight: it.weight ? String(it.weight) : '',
-        unitPrice: String(it.unitPrice),
-      })),
+      o.items
+        .filter((it) => it.name !== SHIP_ITEM_NAME)
+        .map((it) => ({
+          productId: it.productId ?? undefined,
+          name: it.name,
+          quantity: String(it.quantity),
+          weight: it.weight ? String(it.weight) : '',
+          unitPrice: String(it.unitPrice),
+        })),
     );
   }, [editQuery.data]);
 
@@ -595,6 +626,30 @@ export function OrderCreateScreen() {
                 )}
               </View>
 
+              {/* Giao hàng tận nhà — tích để cộng phí ship vào tổng đơn */}
+              {showDeliveryToggle && (
+                <Pressable
+                  onPress={() => shipFee > 0 && setHasDelivery((v) => !v)}
+                  style={styles.deliveryRow}
+                >
+                  <Icon name="moped" size={22} color={hasDelivery ? colors.primary : colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.deliveryLabel}>Giao hàng tận nhà</Text>
+                    <Text style={styles.deliveryHint}>
+                      {shipFee > 0
+                        ? `Cộng phí ship ${formatCurrency(shipFee)} vào tổng đơn`
+                        : 'Chưa cài phí ship trong Cài đặt'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={hasDelivery}
+                    onValueChange={setHasDelivery}
+                    disabled={shipFee <= 0}
+                    trackColor={{ true: colors.primary }}
+                  />
+                </Pressable>
+              )}
+
               <Input
                 label="Ghi chú"
                 value={note}
@@ -796,9 +851,15 @@ export function OrderCreateScreen() {
 
     {/* Footer cố định — tổng tiền + nút tạo đơn */}
     <View style={styles.footer}>
+      {deliveryFee > 0 && (
+        <View style={styles.totalRow}>
+          <Text style={styles.shipLabel}>Phí giao hàng</Text>
+          <Text style={styles.shipValue}>+ {formatCurrency(deliveryFee)}</Text>
+        </View>
+      )}
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>Tổng cộng</Text>
-        <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+        <Text style={styles.totalValue}>{formatCurrency(total + deliveryFee)}</Text>
       </View>
       <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
         <Button
@@ -945,6 +1006,16 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
   totalValue: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  shipLabel: { fontSize: 14, color: colors.textMuted },
+  shipValue: { fontSize: 14, fontWeight: '600', color: colors.text },
+  deliveryRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+  },
+  deliveryLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
+  deliveryHint: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   modalBackdrop: {
     flex: 1, backgroundColor: colors.overlay,
     alignItems: 'center', justifyContent: 'center', padding: spacing.lg,
