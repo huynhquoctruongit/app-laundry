@@ -66,17 +66,14 @@ export function OrdersScreen() {
 
   // Lightweight query just for the badge counts
   const countsQuery = useQuery({
-    queryKey: ['orders', 'status-counts'],
-    queryFn: () => orderApi.statusCounts(),
+    queryKey: ['orders', 'status-counts', { dateFrom, dateTo }],
+    queryFn: () => orderApi.statusCounts({ dateFrom, dateTo }),
     staleTime: 30_000,
   });
 
   const counts = countsQuery.data ?? {};
-  // "Tất cả" KHÔNG cộng key BOOKING (đó là lát cắt riêng theo fromBooking)
-  const totalAll = Object.entries(counts).reduce(
-    (s, [k, n]) => (k === 'BOOKING' ? s : s + n),
-    0,
-  );
+  // "Tất cả" = số đơn tạo trong ngày (BE trả key ALL theo ngày được chọn)
+  const totalAll = counts.ALL ?? 0;
 
   // Infinite-scroll query for the list
   const ordersQuery = useInfiniteQuery({

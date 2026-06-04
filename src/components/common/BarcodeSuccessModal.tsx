@@ -12,6 +12,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
 import { formatCurrency } from '@/lib/utils';
+import { playCoinSound } from '@/lib/sound';
 import type { Order } from '@/types/api';
 
 interface Props {
@@ -36,6 +37,8 @@ export function BarcodeSuccessModal({
 
   useEffect(() => {
     if (visible && order) {
+      // Âm thanh "đồng xu rơi" khi popup hoàn thành hiện lên
+      playCoinSound();
       // Reset
       checkScale.setValue(0);
       checkRotate.setValue(0);

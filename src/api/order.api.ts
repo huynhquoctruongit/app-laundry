@@ -43,8 +43,8 @@ export interface ScanHistoryEntry {
 }
 
 export const orderApi = {
-  statusCounts: () =>
-    unwrap<Record<string, number>>(apiClient.get('/orders/status-counts')),
+  statusCounts: (query: { dateFrom?: string; dateTo?: string } = {}) =>
+    unwrap<Record<string, number>>(apiClient.get('/orders/status-counts', { params: query })),
   list: (query: OrderListQuery = {}) =>
     unwrap<Paginated<Order>>(apiClient.get('/orders', { params: query })),
   detail: (id: string) => unwrap<Order>(apiClient.get(`/orders/${id}`)),

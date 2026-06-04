@@ -11,6 +11,7 @@ import { InvoicePreviewModal } from '@/components/common/InvoicePreviewModal';
 import { orderApi } from '@/api/order.api';
 import { settingsApi } from '@/api/settings.api';
 import { extractError } from '@/api/client';
+import { playCoinSound } from '@/lib/sound';
 import { usePermissions } from '@/hooks/usePermissions';
 import { NEXT_STATUS_TRANSITIONS, ORDER_STATUS_LABEL, STATUS_ACTION_LABEL, type OrderStatus } from '@/helpers/enums/order-status';
 import { colors } from '@/theme/colors';
@@ -52,6 +53,8 @@ export function OrderDetailScreen() {
   const statusMutation = useMutation({
     mutationFn: (status: OrderStatus) => orderApi.updateStatus(id, status),
     onSuccess: (data) => {
+      // Âm thanh "đồng xu rơi" khi hoàn thành đơn (giao cho khách)
+      if (data.status === 'DELIVERED') playCoinSound();
       Toast.show({ type: 'success', text1: `Đã chuyển sang: ${ORDER_STATUS_LABEL[data.status as OrderStatus]}` });
       queryClient.invalidateQueries({ queryKey: ['order', id] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
