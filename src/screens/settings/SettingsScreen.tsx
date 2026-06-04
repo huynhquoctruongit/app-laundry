@@ -606,7 +606,7 @@ function InvoicePreview({
 
         {/* Shop name */}
         {showShopName && (
-          <Text style={[pvStyles.center, { fontSize: fs(invoiceFontSize + 8), fontWeight: '800' }]}>
+          <Text style={[pvStyles.center, { fontSize: fs(invoiceFontSize + 12), fontWeight: '800' }]}>
             {shopName || 'TÊN CỬA HÀNG'}
           </Text>
         )}
@@ -680,7 +680,14 @@ function InvoicePreview({
         {showQR && (
           <>
             <Divider />
-            <Text style={[pvStyles.center, { fontSize: fs(20), fontWeight: '700' }]}>GIAO NHẬN ĐỒ TẠI NHÀ</Text>
+            <Text
+              style={[pvStyles.center, { fontSize: fs(16), fontWeight: '700' }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.55}
+            >
+              QUÉT QR - ĐẶT GIAO NHẬN TẬN NHÀ
+            </Text>
             <Text style={[pvStyles.center, { fontSize: fs(16), color: '#666' }]}>Quét mã QR để đặt đơn</Text>
             <View style={pvStyles.qrBox}>
               <Icon name="qrcode" size={60} color="#111" />

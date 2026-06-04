@@ -159,7 +159,14 @@ export function InvoicePrintView({ order, settings }: Props) {
         <>
           <View style={{ height: 3 }} />
           <View style={s.qrCta}>
-            <Text style={s.qrTitle}>GIAO NHẬN ĐỒ TẬN NHÀ</Text>
+            <Text
+              style={s.qrTitle}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.55}
+            >
+              QUÉT QR - ĐẶT GIAO NHẬN TẬN NHÀ
+            </Text>
             <Text style={s.qrSubtitle}>
               <Text style={s.qrFree}>{freeShip.lead}</Text>{freeShip.rest}
             </Text>
@@ -216,11 +223,12 @@ function makeStyles(FONT: number) {
       marginVertical: 3,
     },
     qrTitle: {
-      fontSize: FONT + 9,
+      width: '100%',
+      fontSize: FONT + 7,
       fontWeight: '900',
       color: '#000',
       textAlign: 'center',
-      letterSpacing: 0.5,
+      letterSpacing: 0,
     },
     qrSubtitle: {
       fontSize: FONT,
@@ -253,7 +261,7 @@ function makeStyles(FONT: number) {
       letterSpacing: 3,
       textAlign: 'center',
     },
-    shopName: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000' },
+    shopName: { textAlign: 'center', fontSize: FONT + 10, fontWeight: '800', color: '#000', width: '100%' },
     title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 1 },
     customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 1 },
     meta: { fontSize: FONT - 1, color: '#333' },
