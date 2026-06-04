@@ -51,8 +51,11 @@ export function DashboardScreen() {
     { label: 'Đã giao', value: report?.deliveredOrders ?? 0, isCurrency: false, icon: 'package-variant', color: '#8b5cf6', bg: '#ede9fe' },
   ];
 
-  const shortcuts = [
-    { label: 'Tạo đơn', icon: 'plus-circle', route: 'OrderCreate', color: colors.primary, bg: colors.primaryLight },
+  const shortcuts: Array<{
+    label: string; icon: string; color: string; bg: string;
+    route?: string; drawer?: string; highlight?: boolean;
+  }> = [
+    { label: 'Tạo đơn', icon: 'plus-circle', route: 'OrderCreate', color: colors.primary, bg: colors.primaryLight, highlight: true },
     { label: 'Quét QR', icon: 'qrcode-scan', route: 'Scanner', color: '#0ea5e9', bg: '#dbeafe' },
     { label: 'Thu chi', icon: 'wallet', drawer: 'Finance', color: colors.success, bg: colors.successLight },
     { label: 'Kho hàng', icon: 'warehouse', drawer: 'Inventory', color: colors.warning, bg: colors.warningLight },
@@ -76,15 +79,6 @@ export function DashboardScreen() {
         />
       }
     >
-      {/* Quick create button — nổi bật */}
-      <Pressable
-        onPress={() => navigation.navigate('OrderCreate')}
-        style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.85 }]}
-      >
-        <Icon name="plus-circle" size={28} color="#fff" />
-        <Text style={styles.createBtnText}>Tạo đơn mới</Text>
-      </Pressable>
-
       {/* Stats */}
       <View style={styles.statsGrid}>
         {stats.map((s) => (
@@ -164,17 +158,24 @@ export function DashboardScreen() {
               {shortcuts.map((s) => (
                 <Pressable
                   key={s.label}
-                  style={styles.shortcut}
+                  style={[styles.shortcut, s.highlight && styles.shortcutHighlight]}
                   onPress={() =>
                     s.route
                       ? navigation.navigate(s.route)
                       : navigation.navigate(s.drawer)
                   }
                 >
-                  <View style={[styles.shortcutIcon, { backgroundColor: s.bg }]}>
-                    <Icon name={s.icon} size={22} color={s.color} />
+                  <View
+                    style={[
+                      styles.shortcutIcon,
+                      { backgroundColor: s.highlight ? 'rgba(255,255,255,0.25)' : s.bg },
+                    ]}
+                  >
+                    <Icon name={s.icon} size={22} color={s.highlight ? '#fff' : s.color} />
                   </View>
-                  <Text style={styles.shortcutLabel}>{s.label}</Text>
+                  <Text style={[styles.shortcutLabel, s.highlight && styles.shortcutLabelHighlight]}>
+                    {s.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -206,9 +207,9 @@ export function DashboardScreen() {
               ]}
               onPress={() => navigation.navigate('OrderDetail', { id: o.id })}
             >
-              <View>
-                <Text style={styles.orderCode}>{o.code}</Text>
-                <Text style={styles.orderMeta}>{o.customer?.name} · {formatDateTime(o.createdAt)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orderCustomer}>{o.customer?.name ?? '—'}</Text>
+                <Text style={styles.orderMeta}>{o.code} · {formatDateTime(o.createdAt)}</Text>
               </View>
               <View
                 style={{
@@ -231,22 +232,6 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  createBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  createBtnText: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   statLabel: { fontSize: 13, color: colors.textMuted },
   statValue: { fontSize: 22, fontWeight: '700', color: colors.text },
@@ -254,10 +239,12 @@ const styles = StyleSheet.create({
   todoBadge: { backgroundColor: '#fde68a', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 99 },
   shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   shortcut: { width: '31%', alignItems: 'center', gap: 6, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  shortcutHighlight: { backgroundColor: colors.primary, borderColor: colors.primary },
   shortcutIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   shortcutLabel: { fontSize: 12, fontWeight: '600', color: colors.text, textAlign: 'center' },
+  shortcutLabelHighlight: { color: '#fff', fontWeight: '800' },
   orderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
-  orderCode: { fontSize: 14, fontWeight: '700', color: colors.text },
+  orderCustomer: { fontSize: 16, fontWeight: '700', color: colors.text },
   orderMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   orderAmount: { fontSize: 14, fontWeight: '600', color: colors.text },
 });

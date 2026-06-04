@@ -3,6 +3,7 @@ import type { Customer, Paginated } from '@/types/api';
 
 export interface CustomerListQuery {
   search?: string;
+  sort?: 'recent' | 'orders';
   page?: number;
   pageSize?: number;
 }

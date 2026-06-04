@@ -12,6 +12,9 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { BRAND_NAME } from '@/helpers/constants/brand';
+import { useQuery } from '@tanstack/react-query';
+import { orderApi } from '@/api/order.api';
+import { bookingApi } from '@/api/booking.api';
 
 import { DashboardScreen } from '@/screens/dashboard/DashboardScreen';
 import { OrdersScreen } from '@/screens/orders/OrdersScreen';
@@ -38,7 +41,7 @@ const NAV_ITEMS: { name: string; label: string; component: React.ComponentType<a
   { name: 'Orders', label: 'Đơn hàng', component: OrdersScreen, icon: 'package-variant' },
   { name: 'Audit', label: 'Rà soát đơn', component: OrderAuditScreen, icon: 'magnify-scan' },
   { name: 'Bookings', label: 'Đặt lịch', component: BookingsScreen, icon: 'calendar-clock' },
-  { name: 'OrderDebts', label: 'Đơn nợ', component: DebtScreen, icon: 'cash-clock' },
+  { name: 'OrderDebts', label: 'Đơn nợ', component: DebtScreen, icon: 'hand-coin' },
   { name: 'Customers', label: 'Khách hàng', component: CustomersScreen, icon: 'account-group' },
   { name: 'Suppliers', label: 'Nhà cung cấp', component: SuppliersScreen, icon: 'truck-delivery' },
   { name: 'Products', label: 'Dịch vụ', component: ProductsScreen, icon: 'tag-multiple' },
@@ -98,6 +101,23 @@ export function AppDrawer() {
   const isAdmin = user?.role === 'ADMIN';
   const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
 
+  // Badge: số đơn nợ + số đặt lịch đang chờ (pageSize 1 chỉ để lấy total)
+  const debtQuery = useQuery({
+    queryKey: ['orders', 'debt', 'count'],
+    queryFn: () => orderApi.list({ debt: true, pageSize: 1 }),
+    staleTime: 30_000,
+  });
+  const bookingQuery = useQuery({
+    queryKey: ['bookings', 'pending', 'count'],
+    queryFn: () => bookingApi.list({ status: 'PENDING', pageSize: 1 }),
+    staleTime: 30_000,
+  });
+  const badgeFor = (name: string): number => {
+    if (name === 'OrderDebts') return debtQuery.data?.total ?? 0;
+    if (name === 'Bookings') return bookingQuery.data?.total ?? 0;
+    return 0;
+  };
+
   return (
     <Drawer.Navigator
       initialRouteName="Dashboard"
@@ -131,6 +151,21 @@ export function AppDrawer() {
           options={{
             title: item.label,
             drawerIcon: ({ color, size }) => <Icon name={item.icon} color={color} size={size} />,
+            drawerLabel: ({ color }) => {
+              const count = badgeFor(item.name);
+              return (
+                <View style={styles.labelRow}>
+                  <Text style={[styles.labelText, { color }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  {count > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            },
           }}
         />
       ))}
@@ -169,4 +204,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border,
   },
   logoutText: { color: colors.danger, fontWeight: '600' },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: -16 },
+  labelText: { fontSize: 15, fontWeight: '500' },
+  badge: {
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
+  },
+  badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 });

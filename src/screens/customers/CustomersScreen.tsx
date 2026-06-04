@@ -21,6 +21,7 @@ export function CustomersScreen() {
   const queryClient = useQueryClient();
   const { canCreate, canEdit, canDelete } = usePermissions();
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'recent' | 'orders'>('recent');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
 
@@ -30,9 +31,9 @@ export function CustomersScreen() {
   const [note, setNote] = useState('');
 
   const listQuery = useQuery({
-    queryKey: ['customers', { search }],
+    queryKey: ['customers', { search, sort }],
     queryFn: () =>
-      customerApi.list({ search: search || undefined, pageSize: 100 }),
+      customerApi.list({ search: search || undefined, sort, pageSize: 100 }),
   });
 
   // Tải stats khi mở edit modal
@@ -149,6 +150,29 @@ export function CustomersScreen() {
         )}
       </View>
 
+      {/* Tổng số + sắp xếp theo số đơn */}
+      <View style={styles.subHeader}>
+        <Text style={styles.totalText}>Tổng: {listQuery.data?.total ?? 0} khách</Text>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <Pressable
+            onPress={() => setSort('recent')}
+            style={[styles.sortChip, sort === 'recent' && styles.sortChipActive]}
+          >
+            <Text style={[styles.sortChipText, sort === 'recent' && styles.sortChipTextActive]}>
+              Mới nhất
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setSort('orders')}
+            style={[styles.sortChip, sort === 'orders' && styles.sortChipActive]}
+          >
+            <Text style={[styles.sortChipText, sort === 'orders' && styles.sortChipTextActive]}>
+              Giặt nhiều nhất
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
       {!canEdit && <ReadOnlyBanner />}
 
       <FlatList
@@ -170,6 +194,10 @@ export function CustomersScreen() {
                   {item.address && <Text style={styles.meta} numberOfLines={1}>{item.address}</Text>}
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                  <View style={styles.countBadge}>
+                    <Icon name="washing-machine" size={13} color={colors.primary} />
+                    <Text style={styles.countText}>{item.orderCount ?? 0} đơn</Text>
+                  </View>
                   <Text style={styles.dateText}>{formatDateTime(item.createdAt)}</Text>
                   {(canEdit || canDelete) && (
                     <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -276,6 +304,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  subHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    gap: spacing.sm, flexWrap: 'wrap',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+    backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  totalText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  sortChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  sortChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  sortChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  sortChipTextActive: { color: '#fff' },
+  countBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primaryLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
+  countText: { fontSize: 13, fontWeight: '800', color: colors.primary },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

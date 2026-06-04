@@ -13,6 +13,7 @@ import { radius, spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 
 type ReportTab = 'financial' | 'sales' | 'customers' | 'inventory';
+type DatePreset = 'today' | 'week' | 'month' | 'lastMonth' | 'custom';
 
 function startOfMonth(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -25,6 +26,28 @@ export function ReportsScreen() {
   const [to, setTo] = useState<Date>(new Date());
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [preset, setPreset] = useState<DatePreset>('month'); // mặc định "Tháng này"
+
+  function applyPreset(p: Exclude<DatePreset, 'custom'>) {
+    const now = new Date();
+    let f: Date;
+    let t: Date = now;
+    if (p === 'today') {
+      f = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (p === 'week') {
+      const dow = (now.getDay() + 6) % 7; // Thứ 2 = 0
+      f = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    } else if (p === 'month') {
+      f = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      // Tháng trước: ngày 1 → ngày cuối tháng trước
+      f = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      t = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    }
+    setFrom(f);
+    setTo(t);
+    setPreset(p);
+  }
 
   const params = useMemo(
     () => ({ from: from.toISOString(), to: to.toISOString() }),
@@ -79,39 +102,67 @@ export function ReportsScreen() {
         ))}
       </View>
 
-      {/* Date range — hidden for inventory */}
+      {/* Chọn nhanh + khoảng ngày — ẩn ở tab kho hàng */}
       {tab !== 'inventory' && (
-        <View style={[styles.dateRow, isPhone && styles.dateRowPhone]}>
-          <Pressable style={styles.dateBtn} onPress={() => setShowFromPicker(true)}>
-            <Icon name="calendar" size={18} color={colors.textMuted} />
-            <Text style={styles.dateBtnText}>Từ: {formatDate(from)}</Text>
-          </Pressable>
-          <Pressable style={styles.dateBtn} onPress={() => setShowToPicker(true)}>
-            <Icon name="calendar" size={18} color={colors.textMuted} />
-            <Text style={styles.dateBtnText}>Đến: {formatDate(to)}</Text>
-          </Pressable>
-          {showFromPicker && (
-            <DateTimePicker
-              value={from}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, d) => {
-                setShowFromPicker(Platform.OS === 'ios');
-                if (d) setFrom(d);
-              }}
-            />
-          )}
-          {showToPicker && (
-            <DateTimePicker
-              value={to}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, d) => {
-                setShowToPicker(Platform.OS === 'ios');
-                if (d) setTo(d);
-              }}
-            />
-          )}
+        <View>
+          <View style={styles.presetRow}>
+            {(
+              [
+                { v: 'today', label: 'Hôm nay' },
+                { v: 'week', label: 'Tuần này' },
+                { v: 'month', label: 'Tháng này' },
+                { v: 'lastMonth', label: 'Tháng trước' },
+              ] as { v: Exclude<DatePreset, 'custom'>; label: string }[]
+            ).map((p) => (
+              <Pressable
+                key={p.v}
+                onPress={() => applyPreset(p.v)}
+                style={[styles.presetChip, preset === p.v && styles.presetChipActive]}
+              >
+                <Text style={[styles.presetChipText, preset === p.v && styles.presetChipTextActive]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={[styles.dateRow, isPhone && styles.dateRowPhone]}>
+            <Pressable style={styles.dateBtn} onPress={() => setShowFromPicker(true)}>
+              <Icon name="calendar" size={18} color={colors.textMuted} />
+              <Text style={styles.dateBtnText}>Từ: {formatDate(from)}</Text>
+            </Pressable>
+            <Pressable style={styles.dateBtn} onPress={() => setShowToPicker(true)}>
+              <Icon name="calendar" size={18} color={colors.textMuted} />
+              <Text style={styles.dateBtnText}>Đến: {formatDate(to)}</Text>
+            </Pressable>
+            {showFromPicker && (
+              <DateTimePicker
+                value={from}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, d) => {
+                  setShowFromPicker(Platform.OS === 'ios');
+                  if (d) {
+                    setFrom(d);
+                    setPreset('custom');
+                  }
+                }}
+              />
+            )}
+            {showToPicker && (
+              <DateTimePicker
+                value={to}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, d) => {
+                  setShowToPicker(Platform.OS === 'ios');
+                  if (d) {
+                    setTo(d);
+                    setPreset('custom');
+                  }
+                }}
+              />
+            )}
+          </View>
         </View>
       )}
 
@@ -431,6 +482,17 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: colors.primary },
   tabText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
   tabTextActive: { color: colors.primary },
+  presetRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+    paddingHorizontal: spacing.lg, paddingTop: spacing.md,
+  },
+  presetChip: {
+    paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+  },
+  presetChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  presetChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  presetChipTextActive: { color: '#fff' },
   dateRow: {
     flexDirection: 'row', gap: spacing.md,
     padding: spacing.lg, paddingBottom: 0,
