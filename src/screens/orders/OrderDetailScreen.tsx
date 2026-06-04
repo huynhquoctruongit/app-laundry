@@ -145,7 +145,10 @@ export function OrderDetailScreen() {
       {/* Header info */}
       <Card>
         <CardHeader style={styles.cardHeader}>
-          <CardTitle>{order.code}</CardTitle>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <CardTitle>{order.customer?.name ?? '—'}</CardTitle>
+            <Text style={styles.codeSub}>Mã đơn: {order.code}</Text>
+          </View>
           <OrderStatusBadge status={order.status} />
           {order.isDebt && (
             <View style={styles.debtChip}>
@@ -161,7 +164,7 @@ export function OrderDetailScreen() {
           )}
         </CardHeader>
         <CardContent style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg }}>
-          <InfoCol label="Khách hàng" value={order.customer?.name ?? '—'} sub={order.customer?.phone} />
+          <InfoCol label="SĐT" value={order.customer?.phone ?? '—'} sub={order.customer?.address ?? undefined} />
           <InfoCol label="Hẹn lấy đồ" value={formatDateTime(order.pickupAt)} />
           <InfoCol label="Đã giao lúc" value={formatDateTime(order.deliveredAt)} />
           <InfoCol label="Tạo lúc" value={formatDateTime(order.createdAt)} />
@@ -428,6 +431,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
+  codeSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   itemRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
   itemName: { fontSize: 15, fontWeight: '600', color: colors.text },
   itemMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },

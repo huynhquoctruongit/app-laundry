@@ -8,6 +8,8 @@ export interface OrderListQuery {
   assignedToId?: string;
   fromBooking?: boolean;
   debt?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   pageSize?: number;
 }

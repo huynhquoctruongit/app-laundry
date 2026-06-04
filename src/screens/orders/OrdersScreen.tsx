@@ -1,5 +1,6 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -17,6 +18,9 @@ import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 
 const PAGE_SIZE = 20;
+
+const fmtDay = (d: Date) =>
+  d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 
 const STATUS_FILTERS: { value: OrderStatus | 'ALL' | 'BOOKING'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -37,6 +41,29 @@ export function OrdersScreen() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<OrderStatus | 'ALL' | 'BOOKING'>('ALL');
 
+  // Lọc theo ngày — mặc định Hôm nay
+  const [dateMode, setDateMode] = useState<'today' | 'yesterday' | 'custom'>('today');
+  const [customDate, setCustomDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const selectedDate = useMemo(() => {
+    if (dateMode === 'yesterday') {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d;
+    }
+    if (dateMode === 'custom') return customDate;
+    return new Date();
+  }, [dateMode, customDate]);
+
+  const { dateFrom, dateTo } = useMemo(() => {
+    const start = new Date(selectedDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(selectedDate);
+    end.setHours(23, 59, 59, 999);
+    return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
+  }, [selectedDate]);
+
   // Lightweight query just for the badge counts
   const countsQuery = useQuery({
     queryKey: ['orders', 'status-counts'],
@@ -53,13 +80,16 @@ export function OrdersScreen() {
 
   // Infinite-scroll query for the list
   const ordersQuery = useInfiniteQuery({
-    queryKey: ['orders', { search, status }],
+    queryKey: ['orders', { search, status, dateFrom, dateTo }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       orderApi.list({
         search: search || undefined,
         status: status === 'ALL' || status === 'BOOKING' ? undefined : status,
         fromBooking: status === 'BOOKING' ? true : undefined,
+        // BE bỏ qua lọc ngày khi đang search (tìm xuyên suốt mọi ngày)
+        dateFrom,
+        dateTo,
         page: pageParam as number,
         pageSize: PAGE_SIZE,
       }),
@@ -122,6 +152,50 @@ export function OrdersScreen() {
         )}
       </View>
 
+      {/* Date filter — mặc định Hôm nay */}
+      <View style={styles.dateRow}>
+        <Pressable
+          onPress={() => setDateMode('today')}
+          style={[styles.dateChip, dateMode === 'today' && styles.dateChipActive]}
+        >
+          <Text style={[styles.dateChipText, dateMode === 'today' && styles.dateChipTextActive]}>
+            Hôm nay
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setDateMode('yesterday')}
+          style={[styles.dateChip, dateMode === 'yesterday' && styles.dateChipActive]}
+        >
+          <Text style={[styles.dateChipText, dateMode === 'yesterday' && styles.dateChipTextActive]}>
+            Hôm qua
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setShowDatePicker(true)}
+          style={[styles.dateChip, dateMode === 'custom' && styles.dateChipActive]}
+        >
+          <Icon name="calendar" size={15} color={dateMode === 'custom' ? '#fff' : colors.textMuted} />
+          <Text style={[styles.dateChipText, dateMode === 'custom' && styles.dateChipTextActive]}>
+            {dateMode === 'custom' ? fmtDay(customDate) : 'Chọn ngày'}
+          </Text>
+        </Pressable>
+      </View>
+      {showDatePicker && (
+        <DateTimePicker
+          value={dateMode === 'custom' ? customDate : new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={new Date()}
+          onChange={(_, d) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (d) {
+              setCustomDate(d);
+              setDateMode('custom');
+            }
+          }}
+        />
+      )}
+
       {/* Status filter chips */}
       <View style={styles.chipRow}>
         {STATUS_FILTERS.map((f) => {
@@ -162,18 +236,23 @@ export function OrdersScreen() {
             <Card>
               <CardContent style={isPhone ? StyleSheet.flatten([styles.row, styles.rowPhone]) : styles.row}>
                 <View style={{ flex: isPhone ? undefined : 1, gap: 4 }}>
+                  {/* Tên khách = thông tin chính (to + đậm nhất) */}
+                  <Text style={styles.customer}>{item.customer?.name ?? '—'}</Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text style={styles.code}>{item.code}</Text>
                     <OrderStatusBadge status={item.status} />
                     {item.fromBooking && (
                       <View style={styles.shipBadge}>
                         <Text style={styles.shipBadgeText}>SHIPPING</Text>
                       </View>
                     )}
+                    {/* Mã đơn = phụ (nhỏ, mờ) */}
+                    <Text style={styles.code}>{item.code}</Text>
                   </View>
-                  <Text style={styles.customer}>{item.customer?.name ?? '—'}</Text>
                   <Text style={styles.meta}>
-                    {item.customer?.phone ?? ''} · {formatDateTime(item.createdAt)}
+                    {item.customer?.phone ? `${item.customer.phone} · ` : ''}
+                    {item.status === 'DELIVERED' && item.deliveredAt
+                      ? `Giao ${formatDateTime(item.deliveredAt)}`
+                      : formatDateTime(item.createdAt)}
                   </Text>
                 </View>
                 <Text style={[styles.amount, isPhone && { alignSelf: 'flex-end' }]}>
@@ -211,6 +290,11 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     padding: spacing.md,
   },
+  dateRow: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.md, paddingTop: spacing.md, backgroundColor: colors.card, alignItems: 'center' },
+  dateChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  dateChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dateChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  dateChipTextActive: { color: '#fff' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: spacing.md, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
@@ -222,8 +306,8 @@ const styles = StyleSheet.create({
   badgeTextActive: { color: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, padding: spacing.lg },
   rowPhone: { flexDirection: 'column', alignItems: 'stretch', padding: spacing.md },
-  code: { fontSize: 16, fontWeight: '700', color: colors.text },
-  customer: { fontSize: 14, color: colors.text },
+  code: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  customer: { fontSize: 18, fontWeight: '800', color: colors.text },
   meta: { fontSize: 12, color: colors.textMuted },
   amount: { fontSize: 16, fontWeight: '700', color: colors.primary },
   shipBadge: {
