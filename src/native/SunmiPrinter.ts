@@ -455,12 +455,14 @@ export async function printReceiptSunmi(fullB64: string): Promise<void> {
     const ok = await preparePrinter();
     if (!ok) throw new Error('Máy in Sunmi không khả dụng');
   }
-  let pixelWidth = 384;
+  // Mặc định 80mm (576px) — máy Sunmi T2 của tiệm là 80mm; in lấp đầy giấy +
+  // phóng to ảnh 384px lên 576px cho chữ to rõ. Chỉ hạ 384 nếu DÒ RA đúng 58mm.
+  let pixelWidth = 576;
   try {
     const info = await SunmiPrinterLibrary.getPrinterInfo();
-    if (info?.paperWidth === '80mm') pixelWidth = 576;
+    if (info?.paperWidth === '58mm') pixelWidth = 384;
   } catch {
-    /* mặc định 58mm */
+    /* lỗi dò khổ giấy → giữ 576 (80mm) */
   }
 
   await withTimeout(SunmiPrinterLibrary.printImage(fullB64, pixelWidth, 'grayscale'), 20000);
