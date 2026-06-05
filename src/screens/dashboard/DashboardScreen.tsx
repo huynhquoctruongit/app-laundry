@@ -46,7 +46,7 @@ export function DashboardScreen() {
 
   const stats = [
     { label: 'Doanh thu', value: report?.revenue ?? 0, isCurrency: true, icon: 'wallet', color: colors.primary, bg: colors.primaryLight },
-    { label: 'Lợi nhuận', value: report?.profit ?? 0, isCurrency: true, icon: 'trending-up', color: colors.success, bg: colors.successLight },
+    { label: 'Đã thu', value: report?.profit ?? 0, isCurrency: true, icon: 'cash-check', color: colors.success, bg: colors.successLight },
     { label: 'Đơn mới', value: report?.newOrders ?? 0, isCurrency: false, icon: 'clipboard-list', color: colors.warning, bg: colors.warningLight },
     { label: 'Đã giao', value: report?.deliveredOrders ?? 0, isCurrency: false, icon: 'package-variant', color: '#8b5cf6', bg: '#ede9fe' },
   ];
