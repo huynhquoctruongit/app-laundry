@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from '@/components/ui/Button';
+import { CameraScanModal, type ScanFeedback } from '@/components/common/CameraScanModal';
 import { orderApi } from '@/api/order.api';
 import { extractError } from '@/api/client';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -57,6 +58,7 @@ export function OrderAuditScreen() {
 
   const [auditMap, setAuditMap] = useState<Map<string, AuditEntry>>(new Map());
   const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   // Ref để handleScan đọc map mới nhất (tránh stale closure do useCallback [])
   const auditMapRef = useRef(auditMap);
   useEffect(() => { auditMapRef.current = auditMap; }, [auditMap]);
@@ -87,9 +89,9 @@ export function OrderAuditScreen() {
 
   // Handler xử lý 1 scan — KHÔNG hoàn thành đơn, chỉ check
   const handleScan = useCallback(
-    async (scanned: string) => {
+    async (scanned: string): Promise<ScanFeedback> => {
       const code = scanned.trim();
-      if (code.length < 2) return;
+      if (code.length < 2) return { status: 'notfound', label: code };
 
       // Mã quét có thể là mã đầy đủ (bag cũ) HOẶC đuôi mã (bag mới) → resolve về
       // key đầy đủ trong danh sách bịch trên kệ.
@@ -104,6 +106,11 @@ export function OrderAuditScreen() {
 
       if (matchedKey) {
         const key = matchedKey;
+        const ent = auditMapRef.current.get(key);
+        const name = ent?.order.customer?.name ?? key;
+        setLastScanned(key);
+        if (ent?.state === 'anomaly') return { status: 'anomaly', label: name };
+        const already = ent?.state === 'verified';
         setAuditMap((prev) => {
           const e = prev.get(key);
           if (!e || e.state === 'anomaly') return prev;
@@ -111,8 +118,7 @@ export function OrderAuditScreen() {
           next.set(key, { ...e, state: 'verified', scannedAt: Date.now() });
           return next;
         });
-        setLastScanned(key);
-        return; // có trong danh sách → tô xanh xong, khỏi gọi API
+        return { status: already ? 'duplicate' : 'verified', label: name };
       }
 
       setLastScanned(code);
@@ -122,8 +128,9 @@ export function OrderAuditScreen() {
         const found = matchScannedOrder(result.items, code);
         if (!found) {
           Toast.show({ type: 'error', text1: 'Không tìm thấy đơn', text2: code });
-          return;
+          return { status: 'notfound', label: code };
         }
+        const fname = found.customer?.name ?? found.code;
         if (found.status === 'DELIVERED') {
           // Anomaly: hệ thống đã ghi giao nhưng đồ vẫn ở kệ
           setAuditMap((prev) => {
@@ -133,7 +140,7 @@ export function OrderAuditScreen() {
           });
           setLastScanned(found.code);
           Toast.show({ type: 'info', text1: 'Bất thường: đơn đã giao nhưng còn trên kệ', text2: found.code });
-          return;
+          return { status: 'anomaly', label: `Bất thường: ${fname}` };
         }
         if (found.status === 'CANCELLED') {
           Toast.show({
@@ -141,7 +148,7 @@ export function OrderAuditScreen() {
             text1: 'Đơn đã huỷ',
             text2: `${found.customer?.name ?? ''} · ${found.code}`,
           });
-          return;
+          return { status: 'cancelled', label: `Đã huỷ: ${fname}` };
         }
         // Trạng thái khác (CREATED/RECEIVED/WASHING) — coi như cần xử lý
         Toast.show({
@@ -149,12 +156,14 @@ export function OrderAuditScreen() {
           text1: `Đơn trạng thái: ${found.status}`,
           text2: found.customer?.name ?? found.code,
         });
+        return { status: 'other', label: fname };
       } catch (err) {
         Toast.show({
           type: 'error',
           text1: 'Lỗi tải dữ liệu',
           text2: extractError(err).message,
         });
+        return { status: 'notfound', label: code };
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -315,17 +324,38 @@ export function OrderAuditScreen() {
           )}
         </View>
 
-        {entries.length > 0 && (
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <Button
-            variant="outline"
-            size="sm"
-            onPress={resetAudit}
-            leftIcon={<Icon name="restart" size={16} color={colors.text} />}
+            style={{ flex: 1 }}
+            onPress={() => setCameraOpen(true)}
+            leftIcon={<Icon name="camera" size={18} color="#fff" />}
           >
-            Bắt đầu lại rà soát
+            Quét bằng camera
           </Button>
-        )}
+          {entries.length > 0 && (
+            <Button
+              variant="outline"
+              onPress={resetAudit}
+              leftIcon={<Icon name="restart" size={16} color={colors.text} />}
+            >
+              Reset
+            </Button>
+          )}
+        </View>
       </View>
+
+      {/* Camera quét hàng loạt — dùng cho điện thoại quét bịch ở xa */}
+      <CameraScanModal
+        visible={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onScan={handleScan}
+        title="Quét bịch trên kệ"
+        subtitle={
+          stats.pendingCount > 0
+            ? `Còn ${stats.pendingCount} bịch chưa quét`
+            : 'Đã quét hết các bịch'
+        }
+      />
     </View>
   );
 }
