@@ -324,7 +324,8 @@ export function OrderAuditScreen() {
           )}
         </View>
 
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+        {/* paddingRight chừa chỗ cho FAB toggle máy quét ở góc dưới-phải */}
+        <View style={{ flexDirection: 'row', gap: spacing.md, paddingRight: 56 }}>
           <Button
             style={{ flex: 1 }}
             onPress={() => setCameraOpen(true)}

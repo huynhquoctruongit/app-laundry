@@ -297,33 +297,22 @@ export default function App() {
               </View>
             )}
 
-            {/* Floating button — toggle scanner */}
+            {/* Floating button — toggle máy quét. Chỉ icon: xanh = BẬT, trắng = TẮT */}
             <Pressable
               onPress={() => setScannerActive((v) => !v)}
               style={({ pressed }) => [
                 styles.scannerFab,
-                scannerActive && styles.scannerFabActive,
+                scannerActive ? styles.scannerFabActive : styles.scannerFabInactive,
                 pressed && { opacity: 0.7 },
               ]}
-              hitSlop={8}
+              hitSlop={10}
+              accessibilityLabel={scannerActive ? 'Máy quét đang bật' : 'Máy quét đang tắt'}
             >
               <Icon
                 name={scannerActive ? 'barcode-scan' : 'barcode-off'}
-                size={20}
+                size={24}
                 color={scannerActive ? '#fff' : colors.textMuted}
               />
-              {scannerActive && (
-                <View style={styles.scannerDot} />
-              )}
-              <Text
-                style={[
-                  styles.scannerFabText,
-                  scannerActive && styles.scannerFabTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {scannerActive ? 'Quét: BẬT' : 'Quét: TẮT'}
-              </Text>
             </Pressable>
 
             <BarcodeOrderModal
@@ -368,15 +357,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 12,
     bottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    width: 48,
+    height: 48,
     borderRadius: 24,
-    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -387,19 +373,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
     borderColor: colors.success,
   },
-  scannerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  scannerFabInactive: {
     backgroundColor: '#fff',
-  },
-  scannerFabText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.3,
-  },
-  scannerFabTextActive: {
-    color: '#fff',
+    borderColor: colors.border,
   },
 });
