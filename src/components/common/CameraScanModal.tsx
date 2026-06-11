@@ -14,6 +14,7 @@ import { Camera, CameraType } from 'react-native-camera-kit';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { playCoinSound } from '@/lib/sound';
 
 export type ScanStatus =
   | 'verified'
@@ -38,8 +39,11 @@ interface Props {
   subtitle?: string;
 }
 
-// Cùng 1 mã trong khoảng này sẽ bị bỏ qua (chống quét trùng khi giữ camera trên 1 bịch)
-const COOLDOWN_MS = 2500;
+// Cùng 1 mã trong khoảng này sẽ bị bỏ qua (chống quét trùng khi giữ camera trên 1 bịch).
+// Mã KHÁC nhau không bị chặn → quét bịch khác là nhận ngay.
+const COOLDOWN_MS = 2000;
+// Banner kết quả tự ẩn sau khoảng này để màn hình luôn "sẵn sàng" quét tiếp.
+const BANNER_MS = 1300;
 
 const FB: Record<ScanStatus, { bg: string; icon: string }> = {
   verified: { bg: '#16a34a', icon: 'check-circle' },
@@ -61,8 +65,10 @@ export function CameraScanModal({
   const [count, setCount] = useState(0);
   const [last, setLast] = useState<ScanFeedback | null>(null);
   const recentRef = useRef<Map<string, number>>(new Map());
+  const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
     if (!visible) return;
     setCount(0);
     setLast(null);
@@ -90,25 +96,45 @@ export function CameraScanModal({
         setPerm('denied');
       }
     })();
+    return () => {
+      if (bannerTimer.current) clearTimeout(bannerTimer.current);
+    };
   }, [visible]);
+
+  // Tín hiệu phản hồi tức thì theo kết quả — quét nhanh không cần nhìn màn hình
+  function signal(status: ScanStatus) {
+    if (status === 'verified') {
+      playCoinSound(); // "đồng xu rơi" = OK
+      Vibration.vibrate(45);
+    } else if (status === 'duplicate') {
+      Vibration.vibrate(30); // đã quét rồi — rung nhẹ
+    } else {
+      Vibration.vibrate([0, 70, 60, 70]); // bất thường / huỷ / không thấy — rung cảnh báo
+    }
+  }
 
   async function handleRead(e: { nativeEvent?: { codeStringValue?: string } }) {
     const code = (e?.nativeEvent?.codeStringValue ?? '').trim();
     if (!code) return;
     const now = Date.now();
     const prev = recentRef.current.get(code);
-    if (prev && now - prev < COOLDOWN_MS) return; // chống trùng
+    if (prev && now - prev < COOLDOWN_MS) return; // chống trùng cùng 1 mã
     recentRef.current.set(code, now);
-    Vibration.vibrate(40);
+
+    let fb: ScanFeedback;
     try {
-      const fb = await onScan(code);
-      setLast(fb);
-      if (fb.status === 'verified' || fb.status === 'anomaly') {
-        setCount((n) => n + 1);
-      }
+      fb = await onScan(code);
     } catch {
-      setLast({ status: 'notfound', label: code });
+      fb = { status: 'notfound', label: code };
     }
+    signal(fb.status);
+    setLast(fb);
+    if (fb.status === 'verified' || fb.status === 'anomaly') {
+      setCount((n) => n + 1);
+    }
+    // Banner tự ẩn → màn hình luôn sẵn sàng quét bịch tiếp theo, không cần bấm gì
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+    bannerTimer.current = setTimeout(() => setLast(null), BANNER_MS);
   }
 
   return (
@@ -125,7 +151,7 @@ export function CameraScanModal({
             cameraType={CameraType.Back}
             scanBarcode
             showFrame={false}
-            scanThrottleDelay={400}
+            scanThrottleDelay={250}
             onReadCode={handleRead}
           />
         ) : (
@@ -148,8 +174,12 @@ export function CameraScanModal({
         {/* Khung ngắm giữa màn hình */}
         {perm === 'granted' && (
           <View pointerEvents="none" style={styles.frameWrap}>
-            <View style={styles.frame} />
-            <Text style={styles.frameHint}>Đưa mã vạch / QR vào khung — quét liên tục</Text>
+            <View
+              style={[styles.frame, last ? { borderColor: FB[last.status].bg } : null]}
+            />
+            <Text style={styles.frameHint}>
+              Đưa mã vào khung — tự nhận, quét bịch tiếp theo luôn
+            </Text>
           </View>
         )}
 
