@@ -5,17 +5,25 @@ export interface FinancialReport {
   revenue: number;
   expenses: number;
   profit: number;
+  /** Tiền thực thu (đã thanh toán) trong khoảng — "Lợi nhuận" hiển thị cho chủ tiệm */
+  collected: number;
   incomeByCategory: Record<string, number>;
   expenseByCategory: Record<string, number>;
-  dailyRevenue: { date: string; revenue: number }[];
+  dailyRevenue: { date: string; amount: number }[];
+  /** Tiền thực thu theo từng ngày — cho biểu đồ cột */
+  dailyCollected: { date: string; amount: number }[];
 }
 
 export interface SalesReport {
   totalOrders: number;
   totalRevenue: number;
+  /** Tiền thực thu (đã thanh toán) trong khoảng */
+  collected: number;
   avgOrderValue: number;
   topProducts: { name: string; quantity: number; revenue: number }[];
   ordersByStatus: Record<string, number>;
+  /** Tiền thực thu theo từng ngày — cho biểu đồ cột */
+  dailyCollected: { date: string; amount: number }[];
 }
 
 export interface InventoryReport {
