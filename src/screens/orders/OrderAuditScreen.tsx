@@ -41,18 +41,12 @@ export function OrderAuditScreen() {
   // Phone: 2 cols, tablet/POS: 4 cols (Sunmi rộng đủ cho 4)
   const numColumns = isPhone ? 2 : width >= 1200 ? 5 : width >= 900 ? 4 : 3;
 
-  // Tải toàn bộ đơn chưa giao (cả READY/CREATED/RECEIVED/WASHING) — bịch trên kệ
+  // Tải toàn bộ đơn đã giặt xong chờ khách lấy (READY) — bịch trên kệ
   const readyQuery = useQuery({
     queryKey: ['orders', 'audit-pending'],
     queryFn: async () => {
-      const result = await orderApi.list({ pageSize: 500 });
-      // Filter client-side: bỏ DELIVERED + CANCELLED
-      return {
-        ...result,
-        items: result.items.filter(
-          (o) => o.status !== 'DELIVERED' && o.status !== 'CANCELLED',
-        ),
-      };
+      const result = await orderApi.list({ status: 'READY', pageSize: 1000 });
+      return result;
     },
   });
 
