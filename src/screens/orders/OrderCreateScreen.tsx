@@ -423,22 +423,33 @@ export function OrderCreateScreen() {
                   )}
                 </View>
               ) : (
-                <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
+                <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
                   <Button
                     onPress={() => setCustomerPickerOpen(true)}
                     leftIcon={<Icon name="account-search" size={20} color="#fff" />}
-                    style={{ flex: isPhone ? undefined : 1 }}
+                    style={{ flex: 1 }}
                   >
                     Chọn khách hàng
                   </Button>
-                  <Button
-                    variant="outline"
+                  <Pressable
                     onPress={() => setQuickAddOpen(true)}
-                    leftIcon={<Icon name="account-plus" size={20} color={colors.text} />}
-                    style={{ flex: isPhone ? undefined : 1 }}
+                    style={({ pressed }) => [
+                      {
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: '#f3f4f6',
+                        borderWidth: 1,
+                        borderColor: '#e5e7eb',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        opacity: pressed ? 0.7 : 1,
+                      }
+                    ]}
+                    accessibilityLabel="Thêm mới khách hàng"
                   >
-                    Thêm mới
-                  </Button>
+                    <Icon name="plus" size={24} color="#9ca3af" />
+                  </Pressable>
                 </View>
               )}
             </CardContent>
@@ -681,21 +692,38 @@ export function OrderCreateScreen() {
             />
             <ScrollView style={{ maxHeight: isPhone ? 300 : 360 }}>
               <View style={{ gap: 4 }}>
-                {(customersQuery.data?.items ?? []).map((c) => (
-                  <Pressable
-                    key={c.id}
-                    onPress={() => {
-                      setCustomerId(c.id);
-                      setCustomerPickerOpen(false);
-                    }}
-                    style={styles.pickerItem}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pickerName}>{c.name}</Text>
-                      <Text style={styles.pickerMeta}>{c.phone}</Text>
-                    </View>
-                  </Pressable>
-                ))}
+                {!customersQuery.data?.items || customersQuery.data.items.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 14 }}>Không tìm thấy khách hàng nào</Text>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onPress={() => {
+                        setCustomerPickerOpen(false);
+                        setQuickAddOpen(true);
+                      }}
+                      leftIcon={<Icon name="plus" size={16} color={colors.text} />}
+                    >
+                      Thêm khách mới
+                    </Button>
+                  </View>
+                ) : (
+                  (customersQuery.data?.items ?? []).map((c) => (
+                    <Pressable
+                      key={c.id}
+                      onPress={() => {
+                        setCustomerId(c.id);
+                        setCustomerPickerOpen(false);
+                      }}
+                      style={styles.pickerItem}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pickerName}>{c.name}</Text>
+                        <Text style={styles.pickerMeta}>{c.phone}</Text>
+                      </View>
+                    </Pressable>
+                  ))
+                )}
               </View>
             </ScrollView>
             <View style={[styles.modalActions, isPhone && styles.modalActionsPhone]}>
