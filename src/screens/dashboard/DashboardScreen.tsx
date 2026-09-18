@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge';
 import { reportApi } from '@/api/report.api';
 import { orderApi } from '@/api/order.api';
+import { bankApi } from '@/api/bank.api';
 import { useResponsive } from '@/hooks/useResponsive';
 import { colors } from '@/theme/colors';
 import { spacing, radius } from '@/theme/spacing';
@@ -35,18 +36,29 @@ export function DashboardScreen() {
     queryFn: () => orderApi.list({ page: 1, pageSize: 10 }),
   });
 
+  // Tiền chuyển khoản hôm nay (GPM Pay) — làm mới mỗi 30s cho gần real-time
+  const bankQuery = useQuery({
+    queryKey: ['bank', 'today'],
+    queryFn: () => bankApi.today(),
+    refetchInterval: 30_000,
+  });
+
   const report = dashboardQuery.data;
+  const transfers = bankQuery.data;
 
   const onRefresh = useCallback(() => {
     dashboardQuery.refetch();
     ordersQuery.refetch();
-  }, [dashboardQuery, ordersQuery]);
+    bankQuery.refetch();
+  }, [dashboardQuery, ordersQuery, bankQuery]);
 
-  const isRefreshing = dashboardQuery.isFetching || ordersQuery.isFetching;
+  const isRefreshing =
+    dashboardQuery.isFetching || ordersQuery.isFetching || bankQuery.isFetching;
 
   const stats = [
     { label: 'Doanh thu', value: report?.revenue ?? 0, isCurrency: true, icon: 'wallet', color: colors.primary, bg: colors.primaryLight },
     { label: 'Đã thu', value: report?.profit ?? 0, isCurrency: true, icon: 'cash-check', color: colors.success, bg: colors.successLight },
+    { label: 'Chuyển khoản', value: transfers?.total ?? 0, isCurrency: true, icon: 'bank', color: '#0d9488', bg: '#ccfbf1' },
     { label: 'Đơn mới', value: report?.newOrders ?? 0, isCurrency: false, icon: 'clipboard-list', color: colors.warning, bg: colors.warningLight },
     { label: 'Đã giao', value: report?.deliveredOrders ?? 0, isCurrency: false, icon: 'package-variant', color: '#8b5cf6', bg: '#ede9fe' },
   ];
@@ -183,6 +195,33 @@ export function DashboardScreen() {
         </Card>
       </View>
 
+      {/* Chuyển khoản gần đây (GPM Pay) */}
+      <Card>
+        <CardHeader style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <CardTitle>Chuyển khoản gần đây</CardTitle>
+          <Icon name="bank" size={20} color="#0d9488" />
+        </CardHeader>
+        <CardContent style={{ gap: spacing.sm }}>
+          {!transfers || transfers.items.length === 0 ? (
+            <Text style={{ textAlign: 'center', color: colors.textMuted, padding: spacing.lg }}>
+              Chưa có chuyển khoản hôm nay
+            </Text>
+          ) : (
+            transfers.items.slice(0, 6).map((t) => (
+              <View key={t.id} style={styles.transferItem}>
+                <View style={{ flex: 1, marginRight: spacing.md }}>
+                  <Text style={styles.transferContent} numberOfLines={1}>
+                    {t.content || t.counterName || t.gateway || 'Chuyển khoản'}
+                  </Text>
+                  <Text style={styles.transferMeta}>{formatDateTime(t.transactionAt)}</Text>
+                </View>
+                <Text style={styles.transferAmount}>+{formatCurrency(t.amount)}</Text>
+              </View>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
       {/* Recent orders */}
       <Card>
         <CardHeader style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -243,6 +282,10 @@ const styles = StyleSheet.create({
   shortcutIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   shortcutLabel: { fontSize: 12, fontWeight: '600', color: colors.text, textAlign: 'center' },
   shortcutLabelHighlight: { color: '#fff', fontWeight: '800' },
+  transferItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ccfbf1', padding: spacing.md, borderRadius: radius.md },
+  transferContent: { fontSize: 13, color: '#115e59' },
+  transferMeta: { fontSize: 11, color: '#0d9488', marginTop: 2 },
+  transferAmount: { fontSize: 14, fontWeight: '700', color: '#0f766e' },
   orderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
   orderCustomer: { fontSize: 16, fontWeight: '700', color: colors.text },
   orderMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },

@@ -315,15 +315,11 @@ export class BTDriver implements IPrinterDriver {
       await text(twoCol('TONG CONG', fmtPrice(grandTotal)), { bold: true, fontSize: 26 });
     }
 
-    // ── 8. QR (đặt lại đơn) ──
-    if (settings.invoiceShowQR && order.qr?.url) {
-      await divider();
-      await align(ALIGN.CENTER);
-      await text('GIAO NHAN DO TAI NHA', { bold: true, fontSize: 28 });
-      await text('Quet ma QR de dat don', { fontSize: 22 });
-      // size=200: tạo bitmap 200×200, đủ lớn để scan được trên giấy 58mm
-      await BluetoothEscposPrinter.printQRCode(order.qr.url, 200, 0);
-    }
+    // ── 8. Promo banner (thay cho mã QR) ──
+    await divider();
+    await align(ALIGN.CENTER);
+    await text('GIAT TOPPER / MEN DAY', { bold: true, fontSize: 30 });
+    await text('VE SINH GIAY BAO SACH', { bold: true, fontSize: 30 });
 
     await divider();
 

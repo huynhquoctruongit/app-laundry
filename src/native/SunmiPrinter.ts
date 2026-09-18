@@ -317,28 +317,21 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.setTextStyle('bold', false);
     }
 
-    // ── 8. QR Code (viền chữ, không tô nền — in nhiệt trắng đen) ──
-    if (settings.invoiceShowQR && order.qr?.url) {
+    // ── 8. Promo banner (thay cho mã QR) ──
+    {
       const boxLine = '+' + '-'.repeat(LINE_WIDTH - 2) + '+';
       await SunmiPrinterLibrary.setFontSize(24);
       await divider('-');
       await SunmiPrinterLibrary.setAlignment('center');
       await SunmiPrinterLibrary.printText(boxLine + '\n');
       await SunmiPrinterLibrary.setTextStyle('bold', true);
-      await SunmiPrinterLibrary.setFontSize(28);
-      await SunmiPrinterLibrary.printText('DICH VU GIAO NHAN\n');
-      await SunmiPrinterLibrary.printText('DO TAI NHA\n');
+      await SunmiPrinterLibrary.setFontSize(30);
+      await SunmiPrinterLibrary.printText('GIAT TOPPER / MEN DAY\n');
+      await SunmiPrinterLibrary.printText('VE SINH GIAY\n');
+      await SunmiPrinterLibrary.printText('BAO SACH\n');
       await SunmiPrinterLibrary.setTextStyle('bold', false);
-      await SunmiPrinterLibrary.setFontSize(22);
-      await SunmiPrinterLibrary.printText('Quet ma va dat don\n');
-      await SunmiPrinterLibrary.printText('Khong can lam gi them\n');
-      await SunmiPrinterLibrary.printText('Chi nhap 1 lan duy nhat\n');
-      await SunmiPrinterLibrary.lineWrap(1);
-      await withTimeout(SunmiPrinterLibrary.printQRCode(order.qr.url, 10, 'middle'), 8000);
-      await SunmiPrinterLibrary.lineWrap(1);
+      await SunmiPrinterLibrary.setFontSize(24);
       await SunmiPrinterLibrary.printText(boxLine + '\n');
-      await divider('-');
-    } else {
       await divider('-');
     }
 

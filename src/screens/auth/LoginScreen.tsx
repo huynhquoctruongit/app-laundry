@@ -13,8 +13,9 @@ import { BRAND_NAME } from '@/helpers/constants/brand';
 
 export function LoginScreen() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Điền sẵn tài khoản nhân viên để khi bị đăng xuất không cần nhập lại
+  const [email, setEmail] = useState('staff@laundry.local');
+  const [password, setPassword] = useState('staff123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
