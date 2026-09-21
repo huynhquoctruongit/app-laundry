@@ -315,20 +315,20 @@ export class BTDriver implements IPrinterDriver {
       await text(twoCol('TONG CONG', fmtPrice(grandTotal)), { bold: true, fontSize: 26 });
     }
 
-    // ── 8. Promo banner (thay cho mã QR) ──
+    // ── 8. Footer ──
     await divider();
-    await align(ALIGN.CENTER);
-    await text('GIAT TOPPER / MEN DAY', { bold: true, fontSize: 30 });
-    await text('VE SINH GIAY BAO SACH', { bold: true, fontSize: 30 });
-
-    await divider();
-
-    // ── 9. Footer ──
     await align(ALIGN.CENTER);
     if (settings.openingHours) {
       await text('Gio mo cua: ' + settings.openingHours, { fontSize: 22 });
     }
     await text('Cam on quy khach! Hen gap lai.', { fontSize: 22 });
+
+    // ── 9. Promo banner (thay cho mã QR) — đặt cuối bill ──
+    await divider();
+    await align(ALIGN.CENTER);
+    await text('VE SINH GIAY SACH', { bold: true, fontSize: 30 });
+    await text('GIAT TOPPER', { bold: true, fontSize: 30 });
+    await text('MEN DAY BAO SACH VA THOM', { bold: true, fontSize: 30 });
 
     await BluetoothEscposPrinter.printText('\n\n\n', {
       encoding: 'GBK', codepage: 1, widthtimes: 0, heigthtimes: 0, fonttype: 0,

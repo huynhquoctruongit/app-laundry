@@ -317,7 +317,15 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.setTextStyle('bold', false);
     }
 
-    // ── 8. Promo banner (thay cho mã QR) ──
+    // ── 8. Footer ──
+    await SunmiPrinterLibrary.setAlignment('center');
+    await SunmiPrinterLibrary.setFontSize(22);
+    if (settings.openingHours) {
+      await SunmiPrinterLibrary.printText('Gio mo cua: ' + settings.openingHours + '\n');
+    }
+    await SunmiPrinterLibrary.printText('Cam on quy khach! Hen gap lai.\n');
+
+    // ── 9. Promo banner (thay cho mã QR) — đặt cuối bill ──
     {
       const boxLine = '+' + '-'.repeat(LINE_WIDTH - 2) + '+';
       await SunmiPrinterLibrary.setFontSize(24);
@@ -326,22 +334,15 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.printText(boxLine + '\n');
       await SunmiPrinterLibrary.setTextStyle('bold', true);
       await SunmiPrinterLibrary.setFontSize(30);
-      await SunmiPrinterLibrary.printText('GIAT TOPPER / MEN DAY\n');
-      await SunmiPrinterLibrary.printText('VE SINH GIAY\n');
-      await SunmiPrinterLibrary.printText('BAO SACH\n');
+      await SunmiPrinterLibrary.printText('VE SINH GIAY SACH\n');
+      await SunmiPrinterLibrary.printText('GIAT TOPPER\n');
+      await SunmiPrinterLibrary.printText('MEN DAY BAO SACH VA THOM\n');
       await SunmiPrinterLibrary.setTextStyle('bold', false);
       await SunmiPrinterLibrary.setFontSize(24);
       await SunmiPrinterLibrary.printText(boxLine + '\n');
       await divider('-');
     }
 
-    // ── 9. Footer ──
-    await SunmiPrinterLibrary.setAlignment('center');
-    await SunmiPrinterLibrary.setFontSize(22);
-    if (settings.openingHours) {
-      await SunmiPrinterLibrary.printText('Gio mo cua: ' + settings.openingHours + '\n');
-    }
-    await SunmiPrinterLibrary.printText('Cam on quy khach! Hen gap lai.\n');
     await SunmiPrinterLibrary.lineWrap(3);
 
     // Commit the buffer — thường là lệnh tốn thời gian nhất, cần timeout riêng

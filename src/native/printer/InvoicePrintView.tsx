@@ -50,19 +50,6 @@ export function InvoicePrintView({ order, settings }: Props) {
 
   return (
     <View style={s.paper}>
-      {/* Promo banner — CTA nổi bật thay cho mã QR */}
-      <View style={{ height: 3 }} />
-      <View style={s.promoCta}>
-        <Text
-          style={s.promoText}
-          numberOfLines={3}
-          adjustsFontSizeToFit
-          minimumFontScale={0.6}
-        >
-          GIẶT TOPPER / MỀN DÀY{'\n'}VỆ SINH GIÀY BAO SẠCH
-        </Text>
-      </View>
-
       {/* Tag SHIPPING (đơn ship/đặt lịch) — TRÊN CÙNG, pill đen chữ trắng */}
       {order.fromBooking && (
         <View style={s.shipTopTag}>
@@ -160,7 +147,21 @@ export function InvoicePrintView({ order, settings }: Props) {
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
       <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
-      {/* Lề DƯỚI tối thiểu an toàn: đủ để nhát cắt không phạm "Cảm ơn" mà
+
+      {/* Promo banner — CTA nổi bật thay cho mã QR, đặt cuối bill */}
+      <View style={{ height: 3 }} />
+      <View style={s.promoCta}>
+        <Text
+          style={s.promoText}
+          numberOfLines={3}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+        >
+          VỆ SINH GIÀY SẠCH{'\n'}GIẶT TOPPER{'\n'}MỀN DÀY BAO SẠCH VÀ THƠM
+        </Text>
+      </View>
+
+      {/* Lề DƯỚI tối thiểu an toàn: đủ để nhát cắt không phạm banner promo mà
           không phí giấy (test trước đây: 48 bị cụt footer, 64 là mức gọn an toàn). */}
       <View style={{ height: 64 }} />
     </View>

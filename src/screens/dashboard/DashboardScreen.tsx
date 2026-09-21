@@ -36,11 +36,11 @@ export function DashboardScreen() {
     queryFn: () => orderApi.list({ page: 1, pageSize: 10 }),
   });
 
-  // Tiền chuyển khoản hôm nay (GPM Pay) — làm mới mỗi 30s cho gần real-time
+  // Tiền chuyển khoản hôm nay (GPM Pay) — làm mới mỗi 5s để gần như tức thì
   const bankQuery = useQuery({
     queryKey: ['bank', 'today'],
     queryFn: () => bankApi.today(),
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
   });
 
   const report = dashboardQuery.data;
