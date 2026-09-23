@@ -10,7 +10,8 @@ import { settingsApi } from '@/api/settings.api';
 import { extractError, setApiBaseUrl, getApiBaseUrl } from '@/api/client';
 import { PrinterService } from '@/native/printer/PrinterService';
 import { scanBluetoothDevices, connectBluetooth, isBluetoothEnabled } from '@/native/printer/drivers/BTDriver';
-import type { BluetoothDevice } from '@/native/printer/types';
+import { listUsbDevices } from '@/native/printer/drivers/USBDriver';
+import type { BluetoothDevice, UsbDevice } from '@/native/printer/types';
 import { Modal, FlatList, ActivityIndicator } from 'react-native';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -128,6 +129,9 @@ export function SettingsScreen() {
   const [btModalVisible, setBtModalVisible] = useState(false);
   const [btScanning, setBtScanning] = useState(false);
   const [btDevices, setBtDevices] = useState<BluetoothDevice[]>([]);
+  const [usbModalVisible, setUsbModalVisible] = useState(false);
+  const [usbScanning, setUsbScanning] = useState(false);
+  const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
 
   async function handleReconnect() {
     setPrinterBusy(true);
@@ -187,6 +191,39 @@ export function SettingsScreen() {
       setPrinterTick((t) => t + 1);
       if (ok) {
         Toast.show({ type: 'success', text1: `Đã kết nối: ${device.name || device.address}` });
+      } else {
+        Toast.show({ type: 'error', text1: 'Kết nối thất bại', text2: PrinterService.getError() ?? undefined });
+      }
+    } finally {
+      setPrinterBusy(false);
+    }
+  }
+
+  async function openUsbScan() {
+    setUsbDevices([]);
+    setUsbModalVisible(true);
+    setUsbScanning(true);
+    try {
+      const devices = await listUsbDevices();
+      if (devices.length === 0) {
+        Toast.show({ type: 'error', text1: 'Không tìm thấy máy in USB', text2: 'Kiểm tra cáp OTG và máy in đã bật' });
+      }
+      setUsbDevices(devices);
+    } catch (err) {
+      Toast.show({ type: 'error', text1: extractError(err).message });
+    } finally {
+      setUsbScanning(false);
+    }
+  }
+
+  async function handleSelectUsbDevice(device: UsbDevice) {
+    setUsbModalVisible(false);
+    setPrinterBusy(true);
+    try {
+      const ok = await PrinterService.connectUsb(device);
+      setPrinterTick((t) => t + 1);
+      if (ok) {
+        Toast.show({ type: 'success', text1: `Đã kết nối: ${device.name}` });
       } else {
         Toast.show({ type: 'error', text1: 'Kết nối thất bại', text2: PrinterService.getError() ?? undefined });
       }
@@ -462,7 +499,9 @@ export function SettingsScreen() {
                         : PrinterService.isReady()
                           ? PrinterService.getType() === 'sunmi'
                             ? 'Sunmi built-in — sẵn sàng'
-                            : `Bluetooth — sẵn sàng`
+                            : PrinterService.getType() === 'usb'
+                              ? 'USB — sẵn sàng'
+                              : 'Bluetooth — sẵn sàng'
                           : 'Chưa kết nối máy in'}
                     </Text>
                     {!PrinterService.isReady() && PrinterService.getError() && (
@@ -489,6 +528,14 @@ export function SettingsScreen() {
                   leftIcon={<Icon name="bluetooth" size={20} color={colors.primary} />}
                 >
                   {PrinterService.getType() === 'bluetooth' ? 'Đổi máy in Bluetooth' : 'Kết nối máy in Bluetooth'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onPress={openUsbScan}
+                  disabled={printerBusy}
+                  leftIcon={<Icon name="usb" size={20} color={colors.primary} />}
+                >
+                  {PrinterService.getType() === 'usb' ? 'Đổi máy in USB' : 'Kết nối máy in USB'}
                 </Button>
                 <Button
                   variant="outline"
@@ -546,6 +593,58 @@ export function SettingsScreen() {
                   />
 
                   <Button variant="outline" onPress={openBtScan} disabled={btScanning} style={{ marginTop: spacing.md }}>
+                    Quét lại
+                  </Button>
+                </View>
+              </View>
+            </Modal>
+
+            {/* USB Device Picker Modal */}
+            <Modal visible={usbModalVisible} transparent animationType="slide" onRequestClose={() => setUsbModalVisible(false)}>
+              <View style={styles.btModalBackdrop}>
+                <View style={styles.btModalCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Chọn máy in USB</Text>
+                    <Pressable onPress={() => setUsbModalVisible(false)}>
+                      <Icon name="close" size={22} color={colors.textMuted} />
+                    </Pressable>
+                  </View>
+
+                  {usbScanning && (
+                    <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={{ color: colors.textMuted, marginTop: spacing.sm }}>Đang tìm…</Text>
+                    </View>
+                  )}
+
+                  {!usbScanning && usbDevices.length === 0 && (
+                    <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.xl }}>
+                      Không tìm thấy thiết bị nào.{'\n'}Kiểm tra cáp OTG và máy in đã bật.
+                    </Text>
+                  )}
+
+                  <FlatList
+                    data={usbDevices}
+                    keyExtractor={(d) => String(d.deviceId)}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        style={styles.btDeviceRow}
+                        onPress={() => handleSelectUsbDevice(item)}
+                      >
+                        <Icon name="usb" size={22} color={colors.primary} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.text, fontWeight: '600' }}>{item.name || 'Thiết bị không tên'}</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                            VID {item.vendorId} / PID {item.productId}
+                          </Text>
+                        </View>
+                        <Icon name="chevron-right" size={20} color={colors.textMuted} />
+                      </Pressable>
+                    )}
+                    ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
+                  />
+
+                  <Button variant="outline" onPress={openUsbScan} disabled={usbScanning} style={{ marginTop: spacing.md }}>
                     Quét lại
                   </Button>
                 </View>

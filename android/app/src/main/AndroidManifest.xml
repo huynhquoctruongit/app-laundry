@@ -19,6 +19,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- USB printer (wired, OTG) — không bắt buộc: máy không có USB host mode vẫn cài được app -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"

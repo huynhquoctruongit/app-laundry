@@ -1,15 +1,23 @@
 import type { Order, ShopSettings } from '@/types/api';
 
-export type PrinterType = 'sunmi' | 'bluetooth' | 'none';
+export type PrinterType = 'sunmi' | 'bluetooth' | 'usb' | 'none';
 
 export interface BluetoothDevice {
   name: string;
   address: string;
 }
 
+export interface UsbDevice {
+  deviceId: number;
+  name: string;
+  vendorId: number;
+  productId: number;
+}
+
 export interface PrinterLocalConfig {
   type: PrinterType;
   bt?: BluetoothDevice;
+  usb?: UsbDevice;
 }
 
 export interface IPrinterDriver {

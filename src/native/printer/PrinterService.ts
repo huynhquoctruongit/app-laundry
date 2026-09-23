@@ -7,9 +7,10 @@
  *   3. Nếu không có gì → status 'none', chờ user thiết lập
  */
 import DeviceInfo from 'react-native-device-info';
-import type { IPrinterDriver, PrinterType, BluetoothDevice } from './types';
+import type { IPrinterDriver, PrinterType, BluetoothDevice, UsbDevice } from './types';
 import { SunmiDriver } from './drivers/SunmiDriver';
 import { BTDriver, scanBluetoothDevices, getPairedBluetoothDevices } from './drivers/BTDriver';
+import { USBDriver } from './drivers/USBDriver';
 import { loadPrinterConfig, savePrinterConfig, clearPrinterConfig } from './localConfig';
 
 // Từ khoá nhận diện tên máy in Bluetooth (case-insensitive)
@@ -101,6 +102,19 @@ async function tryAutoDetect(): Promise<void> {
     if (connected) return;
   }
 
+  // Step 2b: USB printer đã lưu từ lần trước → reconnect
+  if (saved?.type === 'usb' && saved.usb) {
+    const usb = new USBDriver(saved.usb);
+    const ok = await usb.prepare();
+    if (ok) {
+      driver = usb;
+      printerType = 'usb';
+      detectStatus = 'ready';
+      return;
+    }
+    detectError = usb.getError();
+  }
+
   // Step 3: Lấy danh sách thiết bị BT đã ghép đôi (fast, không cần discovery).
   // Tìm thiết bị có tên giống máy in (vd "InnerPrinter", "Xprinter"…).
   try {
@@ -147,6 +161,22 @@ export const PrinterService = {
       await savePrinterConfig({ type: 'bluetooth', bt: device });
     } else {
       detectError = bt.getError();
+    }
+    return ok;
+  },
+
+  /** Kết nối USB printer mới, lưu config */
+  async connectUsb(device: UsbDevice): Promise<boolean> {
+    const usb = new USBDriver(device);
+    const ok = await usb.prepare();
+    if (ok) {
+      driver = usb;
+      printerType = 'usb';
+      detectStatus = 'ready';
+      detectError = null;
+      await savePrinterConfig({ type: 'usb', usb: device });
+    } else {
+      detectError = usb.getError();
     }
     return ok;
   },
