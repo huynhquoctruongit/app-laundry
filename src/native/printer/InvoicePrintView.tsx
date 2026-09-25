@@ -7,7 +7,7 @@
  *  3. Gửi base64 tới SunmiPrinterLibrary.printImage()
  */
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
@@ -23,9 +23,15 @@ function pad2(n: number) {
 function money(v: number) {
   return v.toLocaleString('vi-VN') + 'đ';
 }
+function vietQrUrl(settings: ShopSettings, amount: number, addInfo: string): string {
+  const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.bankAccountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}`;
+  return settings.bankAccountName ? `${url}&accountName=${encodeURIComponent(settings.bankAccountName)}` : url;
+}
 interface Props {
   order: Order;
   settings: ShopSettings;
+  /** Gọi khi ảnh QR chuyển khoản tải xong (thành công hoặc lỗi) — dùng để biết lúc nào chụp ảnh in là an toàn. */
+  onQrLoadEnd?: () => void;
 }
 
 /**
@@ -33,7 +39,7 @@ interface Props {
  * duy nhất → 1 tờ liền (máy BT tự cắt sau mỗi printPic nên không gọi 2 lần).
  * Barcode được in RIÊNG bằng lệnh gốc (sắc nét) NÊN KHÔNG nằm trong ảnh này.
  */
-export function InvoicePrintView({ order, settings }: Props) {
+export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
   const date = new Date(order.createdAt);
   const dateStr = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
@@ -147,6 +153,18 @@ export function InvoicePrintView({ order, settings }: Props) {
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
       <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
+
+      {/* QR chuyển khoản đúng số tiền */}
+      {settings.bankBin && settings.bankAccountNumber && (
+        <View style={{ alignItems: 'center', marginVertical: 6 }}>
+          <Text style={[s.center, s.bold]}>Quét mã chuyển khoản</Text>
+          <Image
+            source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
+            style={{ width: 200, height: 200, marginTop: 4 }}
+            onLoadEnd={onQrLoadEnd}
+          />
+        </View>
+      )}
 
       {/* Promo banner — CTA nổi bật thay cho mã QR, đặt cuối bill */}
       <View style={{ height: 3 }} />

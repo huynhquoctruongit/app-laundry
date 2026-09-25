@@ -224,6 +224,9 @@ export interface ShopSettings {
   invoiceShowQR: boolean;
   invoiceShowDebt: boolean;
   openingHours: string | null;
+  bankBin: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
   labelTemplate: string | null;
   labelFontSize: number;
   loyaltyEnabled: boolean;

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -28,8 +28,20 @@ interface Props {
 export function InvoicePreviewModal({ visible, onClose, order, settings }: Props) {
   const [printing, setPrinting] = useState(false);
   const [contentH, setContentH] = useState(0);
+  const [qrReady, setQrReady] = useState(true);
   const printRef = useRef<View>(null);
   const { width: winW } = useWindowDimensions();
+
+  // Mỗi khi mở modal với hoá đơn có cấu hình QR chuyển khoản, chờ ảnh QR tải
+  // xong trước khi cho phép chụp/in — có timeout an toàn để không kẹt UI nếu mạng chậm/lỗi.
+  useEffect(() => {
+    if (!visible) return;
+    const hasBankQr = Boolean(settings?.bankBin && settings?.bankAccountNumber);
+    setQrReady(!hasBankQr);
+    if (!hasBankQr) return;
+    const timer = setTimeout(() => setQrReady(true), 4000);
+    return () => clearTimeout(timer);
+  }, [visible, order?.id, settings?.bankBin, settings?.bankAccountNumber]);
 
   async function handlePrint() {
     if (!order || !settings) return;
@@ -81,7 +93,7 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
       {/* View off-screen để capture bản in (giữ nguyên 384px cho đúng độ phân giải) */}
       <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
         <View ref={printRef} collapsable={false} style={{ backgroundColor: '#fff' }}>
-          <InvoicePrintView order={order} settings={settings} />
+          <InvoicePrintView order={order} settings={settings} onQrLoadEnd={() => setQrReady(true)} />
         </View>
       </View>
 
@@ -130,7 +142,8 @@ export function InvoicePreviewModal({ visible, onClose, order, settings }: Props
             </Button>
             <Button
               onPress={handlePrint}
-              loading={printing}
+              loading={printing || !qrReady}
+              disabled={!qrReady}
               style={{ flex: 2 }}
               leftIcon={<Icon name="printer" size={20} color="#fff" />}
             >
