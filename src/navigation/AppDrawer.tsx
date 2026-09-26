@@ -3,6 +3,7 @@ import {
   createDrawerNavigator,
   DrawerContentScrollView,
   DrawerItemList,
+  DrawerItem,
   DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -84,6 +85,15 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         </View>
 
         <DrawerItemList {...props} />
+
+        <DrawerItem
+          label="Quét QR"
+          icon={({ color, size }) => <Icon name="qrcode-scan" color={color} size={size} />}
+          onPress={() => props.navigation.navigate('Scanner' as never)}
+          labelStyle={{ fontSize: 15, fontWeight: '500', marginLeft: -16 }}
+          style={{ borderRadius: 8, marginHorizontal: 8, paddingHorizontal: 4 }}
+          inactiveTintColor={colors.textMuted}
+        />
       </DrawerContentScrollView>
 
       {/* Logout — cố định ở đáy, không bị scroll che */}

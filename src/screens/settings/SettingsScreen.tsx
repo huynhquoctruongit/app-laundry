@@ -11,7 +11,8 @@ import { extractError, setApiBaseUrl, getApiBaseUrl } from '@/api/client';
 import { PrinterService } from '@/native/printer/PrinterService';
 import { scanBluetoothDevices, connectBluetooth, isBluetoothEnabled } from '@/native/printer/drivers/BTDriver';
 import { listUsbDevices } from '@/native/printer/drivers/USBDriver';
-import type { BluetoothDevice, UsbDevice } from '@/native/printer/types';
+import { scanWifiPrinters } from '@/native/printer/drivers/WifiDriver';
+import type { BluetoothDevice, UsbDevice, WifiDevice } from '@/native/printer/types';
 import { Modal, FlatList, ActivityIndicator } from 'react-native';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -132,6 +133,11 @@ export function SettingsScreen() {
   const [usbModalVisible, setUsbModalVisible] = useState(false);
   const [usbScanning, setUsbScanning] = useState(false);
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
+  const [wifiModalVisible, setWifiModalVisible] = useState(false);
+  const [wifiScanning, setWifiScanning] = useState(false);
+  const [wifiDevices, setWifiDevices] = useState<WifiDevice[]>([]);
+  const [wifiManualIp, setWifiManualIp] = useState('');
+  const [wifiManualPort, setWifiManualPort] = useState('9100');
 
   async function handleReconnect() {
     setPrinterBusy(true);
@@ -230,6 +236,57 @@ export function SettingsScreen() {
     } finally {
       setPrinterBusy(false);
     }
+  }
+
+  async function openWifiScan() {
+    setWifiDevices([]);
+    setWifiModalVisible(true);
+    setWifiScanning(true);
+    try {
+      const devices = await scanWifiPrinters();
+      if (devices.length === 0) {
+        Toast.show({ type: 'error', text1: 'Không tìm thấy máy in WiFi', text2: 'Kiểm tra máy in đã bật và cùng mạng WiFi' });
+      }
+      setWifiDevices(devices);
+    } catch (err) {
+      Toast.show({ type: 'error', text1: extractError(err).message });
+    } finally {
+      setWifiScanning(false);
+    }
+  }
+
+  async function connectWifiDevice(device: WifiDevice) {
+    setWifiModalVisible(false);
+    setPrinterBusy(true);
+    try {
+      const ok = await PrinterService.connectWifi(device);
+      setPrinterTick((t) => t + 1);
+      if (ok) {
+        Toast.show({ type: 'success', text1: `Đã kết nối: ${device.ip}` });
+      } else {
+        Toast.show({ type: 'error', text1: 'Kết nối thất bại', text2: PrinterService.getError() ?? undefined });
+      }
+    } finally {
+      setPrinterBusy(false);
+    }
+  }
+
+  async function handleSelectWifiDevice(device: WifiDevice) {
+    await connectWifiDevice(device);
+  }
+
+  async function handleManualWifiConnect() {
+    const ip = wifiManualIp.trim();
+    const port = Number(wifiManualPort.trim());
+    if (!ip) {
+      Toast.show({ type: 'error', text1: 'Nhập địa chỉ IP máy in' });
+      return;
+    }
+    if (!port || port <= 0) {
+      Toast.show({ type: 'error', text1: 'Cổng không hợp lệ' });
+      return;
+    }
+    await connectWifiDevice({ ip, port });
   }
 
   return (
@@ -501,7 +558,9 @@ export function SettingsScreen() {
                             ? 'Sunmi built-in — sẵn sàng'
                             : PrinterService.getType() === 'usb'
                               ? 'USB — sẵn sàng'
-                              : 'Bluetooth — sẵn sàng'
+                              : PrinterService.getType() === 'wifi'
+                                ? 'WiFi — sẵn sàng'
+                                : 'Bluetooth — sẵn sàng'
                           : 'Chưa kết nối máy in'}
                     </Text>
                     {!PrinterService.isReady() && PrinterService.getError() && (
@@ -536,6 +595,14 @@ export function SettingsScreen() {
                   leftIcon={<Icon name="usb" size={20} color={colors.primary} />}
                 >
                   {PrinterService.getType() === 'usb' ? 'Đổi máy in USB' : 'Kết nối máy in USB'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onPress={openWifiScan}
+                  disabled={printerBusy}
+                  leftIcon={<Icon name="wifi" size={20} color={colors.primary} />}
+                >
+                  {PrinterService.getType() === 'wifi' ? 'Đổi máy in WiFi' : 'Kết nối máy in WiFi'}
                 </Button>
                 <Button
                   variant="outline"
@@ -647,6 +714,84 @@ export function SettingsScreen() {
                   <Button variant="outline" onPress={openUsbScan} disabled={usbScanning} style={{ marginTop: spacing.md }}>
                     Quét lại
                   </Button>
+                </View>
+              </View>
+            </Modal>
+
+            {/* WiFi Device Picker Modal */}
+            <Modal visible={wifiModalVisible} transparent animationType="slide" onRequestClose={() => setWifiModalVisible(false)}>
+              <View style={styles.btModalBackdrop}>
+                <View style={styles.btModalCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Chọn máy in WiFi</Text>
+                    <Pressable onPress={() => setWifiModalVisible(false)}>
+                      <Icon name="close" size={22} color={colors.textMuted} />
+                    </Pressable>
+                  </View>
+
+                  {wifiScanning && (
+                    <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+                      <ActivityIndicator size="large" color={colors.primary} />
+                      <Text style={{ color: colors.textMuted, marginTop: spacing.sm }}>Đang quét mạng LAN…</Text>
+                    </View>
+                  )}
+
+                  {!wifiScanning && wifiDevices.length === 0 && (
+                    <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg }}>
+                      Không tìm thấy máy in nào trên mạng.{'\n'}Kiểm tra máy in đã bật, cùng mạng WiFi,{'\n'}hoặc nhập IP thủ công bên dưới.
+                    </Text>
+                  )}
+
+                  <FlatList
+                    data={wifiDevices}
+                    keyExtractor={(d) => `${d.ip}:${d.port}`}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        style={styles.btDeviceRow}
+                        onPress={() => handleSelectWifiDevice(item)}
+                      >
+                        <Icon name="wifi" size={22} color={colors.primary} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.text, fontWeight: '600' }}>{item.ip}</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Cổng {item.port}</Text>
+                        </View>
+                        <Icon name="chevron-right" size={20} color={colors.textMuted} />
+                      </Pressable>
+                    )}
+                    ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
+                  />
+
+                  <Button variant="outline" onPress={openWifiScan} disabled={wifiScanning} style={{ marginTop: spacing.md }}>
+                    Quét lại
+                  </Button>
+
+                  <View style={{ marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.sm }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                      Không quét thấy? Nhập IP máy in thủ công:
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                      <View style={{ flex: 2 }}>
+                        <Input
+                          placeholder="192.168.1.50"
+                          value={wifiManualIp}
+                          onChangeText={setWifiManualIp}
+                          autoCapitalize="none"
+                          keyboardType="numbers-and-punctuation"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Input
+                          placeholder="9100"
+                          value={wifiManualPort}
+                          onChangeText={setWifiManualPort}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    </View>
+                    <Button variant="outline" onPress={handleManualWifiConnect} disabled={printerBusy}>
+                      Kết nối
+                    </Button>
+                  </View>
                 </View>
               </View>
             </Modal>
