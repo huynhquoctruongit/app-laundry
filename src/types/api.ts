@@ -239,6 +239,9 @@ export interface ShopSettings {
   allowNoShiftOrder: boolean;
   bookingQrEnabled: boolean;
   bookingQrUrl: string;
+  subscriptionEndsAt: string;
+  currentPlan: string;
+  subscriptionDaysRemaining: number;
 }
 
 export type BookingStatusValue = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'CONVERTED';

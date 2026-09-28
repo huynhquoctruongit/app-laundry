@@ -1,7 +1,9 @@
 import { apiClient, unwrap } from './client';
 import type { ShopSettings } from '@/types/api';
 
-export type SettingsPayload = Partial<Omit<ShopSettings, 'id'>>;
+export type SettingsPayload = Partial<
+  Omit<ShopSettings, 'id' | 'subscriptionEndsAt' | 'currentPlan' | 'subscriptionDaysRemaining'>
+>;
 
 export const settingsApi = {
   get: () => unwrap<ShopSettings>(apiClient.get('/settings')),

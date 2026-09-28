@@ -16,6 +16,7 @@ import { BRAND_NAME } from '@/helpers/constants/brand';
 import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '@/api/order.api';
 import { bookingApi } from '@/api/booking.api';
+import { SubscriptionBanner } from '@/components/common/SubscriptionBanner';
 
 import { DashboardScreen } from '@/screens/dashboard/DashboardScreen';
 import { OrdersScreen } from '@/screens/orders/OrdersScreen';
@@ -54,6 +55,22 @@ const NAV_ITEMS: { name: string; label: string; component: React.ComponentType<a
   { name: 'Staff', label: 'Nhân viên', component: StaffScreen, icon: 'account-cog', adminOnly: true },
   { name: 'Settings', label: 'Cài đặt', component: SettingsScreen, icon: 'cog', adminOnly: true },
 ];
+
+/** Gắn banner nhắc hạn gói lên đầu nội dung mỗi màn trong drawer (dưới header). */
+function withSubscriptionBanner(Screen: React.ComponentType<any>) {
+  function WithBanner(props: any) {
+    return (
+      <View style={{ flex: 1 }}>
+        <SubscriptionBanner />
+        <Screen {...props} />
+      </View>
+    );
+  }
+  WithBanner.displayName = `WithSubscriptionBanner(${Screen.displayName ?? Screen.name ?? 'Screen'})`;
+  return WithBanner;
+}
+
+const SCREENS = NAV_ITEMS.map((item) => ({ ...item, component: withSubscriptionBanner(item.component) }));
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { user, logout } = useAuth();
@@ -109,7 +126,7 @@ export function AppDrawer() {
   const { user } = useAuth();
   const { isPhone } = useResponsive();
   const isAdmin = user?.role === 'ADMIN';
-  const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
+  const items = SCREENS.filter((i) => !i.adminOnly || isAdmin);
 
   // Badge: số đơn nợ + số đặt lịch đang chờ (pageSize 1 chỉ để lấy total)
   const debtQuery = useQuery({
