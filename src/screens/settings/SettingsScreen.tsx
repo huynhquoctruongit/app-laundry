@@ -15,7 +15,7 @@ import { scanWifiPrinters } from '@/native/printer/drivers/WifiDriver';
 import type { BluetoothDevice, UsbDevice, WifiDevice } from '@/native/printer/types';
 import { Modal, FlatList, ActivityIndicator } from 'react-native';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { radius, spacing, touch } from '@/theme/spacing';
 import type { ShopSettings } from '@/types/api';
 
 type SettingsTab = 'shop' | 'invoice' | 'features' | 'api';
@@ -50,6 +50,10 @@ export function SettingsScreen() {
   const [invoiceShowDebt, setInvoiceShowDebt] = useState(false);
   const [openingHours, setOpeningHours] = useState('');
   const [bookingShippingFee, setBookingShippingFee] = useState('');
+  const [bankBin, setBankBin] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankModalVisible, setBankModalVisible] = useState(false);
 
   // Features
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
@@ -87,6 +91,9 @@ export function SettingsScreen() {
     setBookingShippingFee(
       s.bookingShippingFee != null ? String(s.bookingShippingFee) : '',
     );
+    setBankBin(s.bankBin ?? '');
+    setBankAccountNumber(s.bankAccountNumber ?? '');
+    setBankAccountName(s.bankAccountName ?? '');
 
     setLoyaltyEnabled(!!s.loyaltyEnabled);
     setLoyaltyPointsRate(s.loyaltyPointsRate != null ? String(s.loyaltyPointsRate) : '');
@@ -102,6 +109,18 @@ export function SettingsScreen() {
       setApiUrl(url);
     })();
   }, []);
+
+  const banksQuery = useQuery({
+    queryKey: ['vietqr-banks'],
+    queryFn: async () => {
+      const res = await fetch('https://api.vietqr.io/v2/banks');
+      const json = await res.json();
+      return (json.data ?? []) as { bin: string; name: string; shortName: string; code: string }[];
+    },
+    staleTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+  });
+  const selectedBank = banksQuery.data?.find((b) => b.bin === bankBin);
 
   const saveMutation = useMutation({
     mutationFn: (payload: Partial<ShopSettings>) => settingsApi.update(payload),
@@ -429,6 +448,9 @@ export function SettingsScreen() {
                     bookingShippingFee: bookingShippingFee
                       ? Number(bookingShippingFee)
                       : null,
+                    bankBin: bankBin || null,
+                    bankAccountNumber: bankAccountNumber || null,
+                    bankAccountName: bankAccountName || null,
                   })
                 }
                 loading={saveMutation.isPending}
@@ -437,6 +459,115 @@ export function SettingsScreen() {
               </Button>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Chuyển khoản VietQR</CardTitle></CardHeader>
+            <CardContent style={{ gap: spacing.md }}>
+              <View>
+                <Text style={styles.fieldLabel}>Ngân hàng</Text>
+                <Pressable style={styles.selectTrigger} onPress={() => setBankModalVisible(true)}>
+                  <Text
+                    style={{ color: selectedBank || bankBin ? colors.text : colors.textSubtle, fontSize: 16, flex: 1 }}
+                    numberOfLines={1}
+                  >
+                    {selectedBank ? `${selectedBank.shortName} — ${selectedBank.name}` : bankBin || 'Chọn ngân hàng'}
+                  </Text>
+                  <Icon name="chevron-down" size={20} color={colors.textMuted} />
+                </Pressable>
+                {banksQuery.isError && (
+                  <Input
+                    value={bankBin}
+                    onChangeText={setBankBin}
+                    placeholder="Mã BIN, vd 970436"
+                    hint="Không tải được danh sách ngân hàng, nhập mã BIN thủ công"
+                    autoCapitalize="none"
+                    containerStyle={{ marginTop: spacing.sm }}
+                  />
+                )}
+              </View>
+              <Input
+                label="Số tài khoản"
+                value={bankAccountNumber}
+                onChangeText={setBankAccountNumber}
+                placeholder="0123456789"
+                keyboardType="number-pad"
+              />
+              <Input
+                label="Tên chủ tài khoản"
+                value={bankAccountName}
+                onChangeText={(t) => setBankAccountName(t.toUpperCase())}
+                placeholder="NGUYEN VAN A"
+                autoCapitalize="characters"
+              />
+              <Text style={styles.switchDesc}>
+                Có đủ ngân hàng + số tài khoản sẽ tự hiện mã QR chuyển khoản đúng số tiền trên hóa đơn. Để trống sẽ không hiện QR.
+              </Text>
+              <Button
+                onPress={() =>
+                  saveMutation.mutate({
+                    bankBin: bankBin || null,
+                    bankAccountNumber: bankAccountNumber || null,
+                    bankAccountName: bankAccountName || null,
+                  })
+                }
+                loading={saveMutation.isPending}
+              >
+                Lưu thay đổi
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Modal
+            visible={bankModalVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setBankModalVisible(false)}
+          >
+            <View style={styles.btModalBackdrop}>
+              <View style={styles.btModalCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Chọn ngân hàng</Text>
+                  <Pressable onPress={() => setBankModalVisible(false)}>
+                    <Icon name="close" size={22} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+
+                {banksQuery.isLoading && (
+                  <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  </View>
+                )}
+
+                {banksQuery.isError && (
+                  <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.xl }}>
+                    Không tải được danh sách ngân hàng.{'\n'}Đóng lại và nhập mã BIN thủ công ở ô bên dưới.
+                  </Text>
+                )}
+
+                <FlatList
+                  data={banksQuery.data ?? []}
+                  keyExtractor={(b) => b.bin}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={styles.btDeviceRow}
+                      onPress={() => {
+                        setBankBin(item.bin);
+                        setBankModalVisible(false);
+                      }}
+                    >
+                      <Icon name="bank" size={22} color={colors.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontWeight: '600' }}>{item.shortName}</Text>
+                        <Text style={{ color: colors.textMuted, fontSize: 12 }}>{item.name}</Text>
+                      </View>
+                      {item.bin === bankBin && <Icon name="check" size={20} color={colors.success} />}
+                    </Pressable>
+                  )}
+                  ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
+                />
+              </View>
+            </View>
+          </Modal>
           </>
         )}
 
@@ -1076,6 +1207,11 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
   switchDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  selectTrigger: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, minHeight: touch.inputHeight, paddingHorizontal: spacing.md,
+  },
   printerStatus: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     padding: spacing.md, backgroundColor: colors.background,
