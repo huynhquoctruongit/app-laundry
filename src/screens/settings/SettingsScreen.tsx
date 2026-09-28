@@ -58,6 +58,7 @@ export function SettingsScreen() {
   // Features
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [loyaltyPointsRate, setLoyaltyPointsRate] = useState('');
+  const [bookingQrEnabled, setBookingQrEnabled] = useState(true);
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
   const [freeShipThreshold, setFreeShipThreshold] = useState('');
@@ -97,6 +98,7 @@ export function SettingsScreen() {
 
     setLoyaltyEnabled(!!s.loyaltyEnabled);
     setLoyaltyPointsRate(s.loyaltyPointsRate != null ? String(s.loyaltyPointsRate) : '');
+    setBookingQrEnabled(s.bookingQrEnabled ?? true);
     setDeliveryEnabled(!!s.deliveryEnabled);
     setDeliveryFee(s.deliveryFee != null ? String(s.deliveryFee) : '');
     setFreeShipThreshold(s.freeShipThreshold != null ? String(s.freeShipThreshold) : '');
@@ -592,6 +594,13 @@ export function SettingsScreen() {
               )}
 
               <SwitchRow
+                label="Bật đặt lịch qua quét mã QR"
+                description="Khách quét mã ở cửa tiệm để tự đặt lịch giao nhận"
+                value={bookingQrEnabled}
+                onChange={setBookingQrEnabled}
+              />
+
+              <SwitchRow
                 label="Bật giao hàng"
                 description="Cho phép đơn có ship"
                 value={deliveryEnabled}
@@ -636,6 +645,7 @@ export function SettingsScreen() {
                   saveMutation.mutate({
                     loyaltyEnabled,
                     loyaltyPointsRate: loyaltyPointsRate ? Number(loyaltyPointsRate) : null,
+                    bookingQrEnabled,
                     deliveryEnabled,
                     deliveryFee: deliveryFee ? Number(deliveryFee) : null,
                     bookingShippingFee: bookingShippingFee ? Number(bookingShippingFee) : null,

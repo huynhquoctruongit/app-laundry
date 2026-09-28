@@ -8,6 +8,7 @@
  */
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
@@ -49,6 +50,10 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
   const baseFont = clamp(settings.invoiceFontSize ?? 15, 12, 26);
   const nameFont = clamp(settings.customerNameFontSize ?? 22, 16, 34);
   const s = useMemo(() => makeStyles(baseFont), [baseFont]);
+
+  const hasBankQr = Boolean(settings.bankBin && settings.bankAccountNumber);
+  const hasBookingQr = Boolean(settings.bookingQrEnabled && settings.bookingQrUrl);
+  const showBothQr = hasBankQr && hasBookingQr;
 
   const Divider = () => (
     <View style={s.divider} />
@@ -149,24 +154,8 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
       </View>
 
       <Divider />
-      {settings.openingHours ? (
-        <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
-      ) : null}
-      <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
 
-      {/* QR chuyển khoản đúng số tiền */}
-      {settings.bankBin && settings.bankAccountNumber && (
-        <View style={{ alignItems: 'center', marginVertical: 6 }}>
-          <Text style={[s.center, s.bold]}>Quét mã chuyển khoản</Text>
-          <Image
-            source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
-            style={{ width: 200, height: 200, marginTop: 4 }}
-            onLoadEnd={onQrLoadEnd}
-          />
-        </View>
-      )}
-
-      {/* Promo banner — CTA nổi bật thay cho mã QR, đặt cuối bill */}
+      {/* Promo banner — CTA nổi bật, ngay sau tổng tiền */}
       <View style={{ height: 3 }} />
       <View style={s.promoCta}>
         <Text
@@ -179,7 +168,47 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
         </Text>
       </View>
 
-      {/* Lề DƯỚI tối thiểu an toàn: đủ để nhát cắt không phạm banner promo mà
+      {/* QR chuyển khoản + QR đặt lịch — nếu bật cả 2 thì chia 2 ô có khung + nhãn để không nhầm mã */}
+      {showBothQr ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 6 }}>
+          <View style={s.qrBox}>
+            <Text style={s.qrBoxLabel}>Chuyển khoản</Text>
+            <Image
+              source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
+              style={{ width: 150, height: 150 }}
+              onLoadEnd={onQrLoadEnd}
+            />
+          </View>
+          <View style={s.qrBox}>
+            <Text style={s.qrBoxLabel}>Đặt lịch giao nhận</Text>
+            <QRCode value={settings.bookingQrUrl} size={150} />
+          </View>
+        </View>
+      ) : (
+        <>
+          {hasBankQr && (
+            <View style={{ alignItems: 'center', marginVertical: 6 }}>
+              <Image
+                source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
+                style={{ width: 230, height: 230 }}
+                onLoadEnd={onQrLoadEnd}
+              />
+            </View>
+          )}
+          {hasBookingQr && (
+            <View style={{ alignItems: 'center', marginVertical: 6 }}>
+              <QRCode value={settings.bookingQrUrl} size={230} />
+            </View>
+          )}
+        </>
+      )}
+
+      {settings.openingHours ? (
+        <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
+      ) : null}
+      <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
+
+      {/* Lề DƯỚI tối thiểu an toàn: đủ để nhát cắt không phạm footer mà
           không phí giấy (test trước đây: 48 bị cụt footer, 64 là mức gọn an toàn). */}
       <View style={{ height: 64 }} />
     </View>
@@ -210,6 +239,15 @@ function makeStyles(FONT: number) {
     },
     center: { textAlign: 'center', fontSize: FONT, color: '#000' },
     codeBox: { alignItems: 'center', justifyContent: 'center', marginVertical: 3 },
+    qrBox: {
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: '#000',
+      borderRadius: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 8,
+    },
+    qrBoxLabel: { fontSize: Math.max(FONT - 3, 10), fontWeight: '700', color: '#000', marginBottom: 4, textAlign: 'center' },
     promoCta: {
       alignItems: 'center',
       justifyContent: 'center',

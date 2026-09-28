@@ -237,6 +237,8 @@ export interface ShopSettings {
   bookingShippingFee: number | null;
   freeShipThreshold: number | null;
   allowNoShiftOrder: boolean;
+  bookingQrEnabled: boolean;
+  bookingQrUrl: string;
 }
 
 export type BookingStatusValue = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'CONVERTED';
