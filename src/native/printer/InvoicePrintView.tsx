@@ -51,7 +51,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
   const nameFont = clamp(settings.customerNameFontSize ?? 22, 16, 34);
   const s = useMemo(() => makeStyles(baseFont), [baseFont]);
 
-  const hasBankQr = Boolean(settings.bankBin && settings.bankAccountNumber);
+  const hasBankQr = Boolean(settings.invoiceShowQR && settings.bankBin && settings.bankAccountNumber);
   const hasBookingQr = Boolean(settings.bookingQrEnabled && settings.bookingQrUrl);
   const showBothQr = hasBankQr && hasBookingQr;
 

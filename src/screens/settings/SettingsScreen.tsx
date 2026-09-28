@@ -396,6 +396,7 @@ export function SettingsScreen() {
             showBarcode={invoiceShowBarcode}
             showQR={invoiceShowQR}
             showDebt={invoiceShowDebt}
+            bookingQrEnabled={bookingQrEnabled}
           />
 
           <Card>
@@ -423,7 +424,6 @@ export function SettingsScreen() {
               <SwitchRow label="Địa chỉ" value={invoiceShowAddress} onChange={setInvoiceShowAddress} />
               <SwitchRow label="Website" value={invoiceShowWebsite} onChange={setInvoiceShowWebsite} />
               <SwitchRow label="Mã vạch" value={invoiceShowBarcode} onChange={setInvoiceShowBarcode} />
-              <SwitchRow label="Mã QR" value={invoiceShowQR} onChange={setInvoiceShowQR} />
               <SwitchRow label="Hiển thị công nợ" value={invoiceShowDebt} onChange={setInvoiceShowDebt} />
 
               <Input
@@ -504,12 +504,19 @@ export function SettingsScreen() {
               <Text style={styles.switchDesc}>
                 Có đủ ngân hàng + số tài khoản sẽ tự hiện mã QR chuyển khoản đúng số tiền trên hóa đơn. Để trống sẽ không hiện QR.
               </Text>
+              <SwitchRow
+                label="Hiện mã QR chuyển khoản trên hoá đơn"
+                description="Tắt để tạm ẩn QR chuyển khoản trên hoá đơn in mà không cần xoá thông tin ngân hàng"
+                value={invoiceShowQR}
+                onChange={setInvoiceShowQR}
+              />
               <Button
                 onPress={() =>
                   saveMutation.mutate({
                     bankBin: bankBin || null,
                     bankAccountNumber: bankAccountNumber || null,
                     bankAccountName: bankAccountName || null,
+                    invoiceShowQR,
                   })
                 }
                 loading={saveMutation.isPending}
@@ -602,7 +609,7 @@ export function SettingsScreen() {
 
               <SwitchRow
                 label="Bật giao hàng"
-                description="Cho phép đơn có ship"
+                description="Cho phép chọn 'có giao hàng' khi tạo đơn thủ công (không liên quan đặt lịch qua QR ở trên)"
                 value={deliveryEnabled}
                 onChange={setDeliveryEnabled}
               />
@@ -959,14 +966,18 @@ interface InvoicePreviewProps {
   showBarcode: boolean;
   showQR: boolean;
   showDebt: boolean;
+  bookingQrEnabled: boolean;
 }
 
 function InvoicePreview({
   shopName, phone, address, website,
   invoiceFontSize, customerNameFontSize,
   showShopName, showPhone, showAddress, showWebsite,
-  showBarcode, showQR, showDebt,
+  showBarcode, showQR, showDebt, bookingQrEnabled,
 }: InvoicePreviewProps) {
+  const hasBankQr = showQR;
+  const hasBookingQr = bookingQrEnabled;
+  const showBothQr = hasBankQr && hasBookingQr;
   // Scale font xuống ~60% để vừa màn hình
   const scale = 0.6;
   const fs = (n: number) => Math.round(n * scale);
@@ -1061,22 +1072,39 @@ function InvoicePreview({
         <Row left="TỔNG CỘNG" right="105.000d" />
         {showDebt && <Row left="Giảm giá" right="-5.000d" />}
 
-        {/* QR placeholder */}
-        {showQR && (
-          <>
-            <Divider />
-            <Text
-              style={[pvStyles.center, { fontSize: fs(16), fontWeight: '700' }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.55}
-            >
-              QUÉT QR - ĐẶT GIAO NHẬN TẬN NHÀ
-            </Text>
-            <Text style={[pvStyles.center, { fontSize: fs(16), color: '#666' }]}>Quét mã QR để đặt đơn</Text>
-            <View style={pvStyles.qrBox}>
-              <Icon name="qrcode" size={60} color="#111" />
+        <Divider />
+
+        {/* Promo banner — luôn hiện trên bill thật, không phụ thuộc cài đặt */}
+        <View style={pvStyles.promoBox}>
+          <Text style={[pvStyles.center, { fontSize: fs(20), fontWeight: '900' }]}>
+            VỆ SINH GIÀY SẠCH{'\n'}GIẶT TOPPER{'\n'}MỀN DÀY BAO SẠCH VÀ THƠM
+          </Text>
+        </View>
+
+        {/* QR chuyển khoản + QR đặt lịch — giống hệt logic bill thật */}
+        {showBothQr ? (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <View style={pvStyles.qrBoxFramed}>
+              <Text style={pvStyles.qrBoxLabel}>Chuyển khoản</Text>
+              <Icon name="qrcode" size={44} color="#111" />
             </View>
+            <View style={pvStyles.qrBoxFramed}>
+              <Text style={pvStyles.qrBoxLabel}>Đặt lịch giao nhận</Text>
+              <Icon name="qrcode" size={44} color="#111" />
+            </View>
+          </View>
+        ) : (
+          <>
+            {hasBankQr && (
+              <View style={pvStyles.qrBox}>
+                <Icon name="qrcode" size={60} color="#111" />
+              </View>
+            )}
+            {hasBookingQr && (
+              <View style={pvStyles.qrBox}>
+                <Icon name="qrcode" size={60} color="#111" />
+              </View>
+            )}
           </>
         )}
 
@@ -1124,6 +1152,24 @@ const pvStyles = StyleSheet.create({
   },
   bar: { height: '100%' },
   qrBox: { marginVertical: 4 },
+  promoBox: {
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  qrBoxFramed: {
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#000',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  qrBoxLabel: { fontSize: 10, fontWeight: '700', color: '#111', marginBottom: 2, textAlign: 'center' },
 });
 
 function SizeStepper({
