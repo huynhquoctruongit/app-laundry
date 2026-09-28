@@ -229,20 +229,18 @@ export async function renderInvoice(backend: EscPosBackend, order: Order, settin
     await text(backend, twoCol('TONG CONG', fmtPrice(grandTotal)), { bold: true, fontSize: 26 });
   }
 
-  // ── 8. Footer ──
-  await divider(backend);
-  await align(backend, ALIGN.CENTER);
-  if (settings.openingHours) {
-    await text(backend, 'Gio mo cua: ' + settings.openingHours, { fontSize: 22 });
-  }
-  await text(backend, 'Cam on quy khach! Hen gap lai.', { fontSize: 22 });
-
-  // ── 9. Promo banner (thay cho mã QR) — đặt cuối bill ──
+  // ── 8. Promo banner — ngay sau tổng tiền ──
   await divider(backend);
   await align(backend, ALIGN.CENTER);
   await text(backend, 'VE SINH GIAY SACH', { bold: true, fontSize: 30 });
   await text(backend, 'GIAT TOPPER', { bold: true, fontSize: 30 });
   await text(backend, 'MEN DAY BAO SACH VA THOM', { bold: true, fontSize: 30 });
+
+  // ── 9. Footer: giờ mở cửa ở cuối cùng ──
+  if (settings.openingHours) {
+    await divider(backend);
+    await text(backend, 'Gio mo cua: ' + settings.openingHours, { fontSize: 22 });
+  }
 
   await backend.printText('\n\n\n', {
     encoding: 'GBK', codepage: 1, widthtimes: 0, heigthtimes: 0, fonttype: 0,

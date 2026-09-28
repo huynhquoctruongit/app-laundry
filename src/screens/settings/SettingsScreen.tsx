@@ -397,6 +397,7 @@ export function SettingsScreen() {
             showQR={invoiceShowQR}
             showDebt={invoiceShowDebt}
             bookingQrEnabled={bookingQrEnabled}
+            openingHours={openingHours}
           />
 
           <Card>
@@ -967,13 +968,14 @@ interface InvoicePreviewProps {
   showQR: boolean;
   showDebt: boolean;
   bookingQrEnabled: boolean;
+  openingHours: string;
 }
 
 function InvoicePreview({
   shopName, phone, address, website,
   invoiceFontSize, customerNameFontSize,
   showShopName, showPhone, showAddress, showWebsite,
-  showBarcode, showQR, showDebt, bookingQrEnabled,
+  showBarcode, showQR, showDebt, bookingQrEnabled, openingHours,
 }: InvoicePreviewProps) {
   const hasBankQr = showQR;
   const hasBookingQr = bookingQrEnabled;
@@ -1085,7 +1087,6 @@ function InvoicePreview({
         {showBothQr ? (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
             <View style={pvStyles.qrBoxFramed}>
-              <Text style={pvStyles.qrBoxLabel}>Chuyển khoản</Text>
               <Icon name="qrcode" size={44} color="#111" />
             </View>
             <View style={pvStyles.qrBoxFramed}>
@@ -1108,10 +1109,12 @@ function InvoicePreview({
           </>
         )}
 
-        <Divider />
-        <Text style={[pvStyles.center, { fontSize: fs(18), color: '#555' }]}>
-          Cảm ơn quý khách! Hẹn gặp lại.
-        </Text>
+        {/* Giờ mở cửa ở cuối cùng */}
+        {openingHours ? (
+          <Text style={[pvStyles.center, { fontSize: fs(18), color: '#555' }]}>
+            Giờ mở cửa: {openingHours}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

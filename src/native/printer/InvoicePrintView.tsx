@@ -172,7 +172,6 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
       {showBothQr ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 6 }}>
           <View style={s.qrBox}>
-            <Text style={s.qrBoxLabel}>Chuyển khoản</Text>
             <Image
               source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
               style={{ width: 150, height: 150 }}
@@ -203,10 +202,10 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
         </>
       )}
 
+      {/* Giờ mở cửa ở cuối cùng */}
       {settings.openingHours ? (
         <Text style={s.center}>Giờ mở cửa: {settings.openingHours}</Text>
       ) : null}
-      <Text style={[s.center, s.bold]}>Cảm ơn quý khách! Hẹn gặp lại.</Text>
 
       {/* Lề DƯỚI tối thiểu an toàn: đủ để nhát cắt không phạm footer mà
           không phí giấy (test trước đây: 48 bị cụt footer, 64 là mức gọn an toàn). */}

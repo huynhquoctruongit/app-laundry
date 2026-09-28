@@ -317,15 +317,7 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.setTextStyle('bold', false);
     }
 
-    // ── 8. Footer ──
-    await SunmiPrinterLibrary.setAlignment('center');
-    await SunmiPrinterLibrary.setFontSize(22);
-    if (settings.openingHours) {
-      await SunmiPrinterLibrary.printText('Gio mo cua: ' + settings.openingHours + '\n');
-    }
-    await SunmiPrinterLibrary.printText('Cam on quy khach! Hen gap lai.\n');
-
-    // ── 9. Promo banner (thay cho mã QR) — đặt cuối bill ──
+    // ── 8. Promo banner — ngay sau tổng tiền ──
     {
       const boxLine = '+' + '-'.repeat(LINE_WIDTH - 2) + '+';
       await SunmiPrinterLibrary.setFontSize(24);
@@ -341,6 +333,13 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.setFontSize(24);
       await SunmiPrinterLibrary.printText(boxLine + '\n');
       await divider('-');
+    }
+
+    // ── 9. Footer: giờ mở cửa ở cuối cùng ──
+    if (settings.openingHours) {
+      await SunmiPrinterLibrary.setAlignment('center');
+      await SunmiPrinterLibrary.setFontSize(22);
+      await SunmiPrinterLibrary.printText('Gio mo cua: ' + settings.openingHours + '\n');
     }
 
     await SunmiPrinterLibrary.lineWrap(3);
