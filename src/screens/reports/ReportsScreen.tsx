@@ -10,6 +10,7 @@ import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ORDER_STATUS_LABEL, type OrderStatus } from '@/helpers/enums/order-status';
+import { ServiceStatsView } from './ServiceStatsView';
 
 type DatePreset = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'custom';
 
@@ -17,7 +18,34 @@ function startOfMonth(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
+type ReportTab = 'sales' | 'services';
+
 export function ReportsScreen() {
+  const [tab, setTab] = useState<ReportTab>('sales');
+  return (
+    <View style={styles.container}>
+      <View style={styles.tabRow}>
+        {(
+          [
+            { v: 'sales', label: 'Tổng quan' },
+            { v: 'services', label: 'Theo dịch vụ' },
+          ] as { v: ReportTab; label: string }[]
+        ).map((t) => (
+          <Pressable
+            key={t.v}
+            onPress={() => setTab(t.v)}
+            style={[styles.tabItem, tab === t.v && styles.tabItemActive]}
+          >
+            <Text style={[styles.tabText, tab === t.v && styles.tabTextActive]}>{t.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {tab === 'sales' ? <SalesOverview /> : <ServiceStatsView />}
+    </View>
+  );
+}
+
+function SalesOverview() {
   const { isPhone } = useResponsive();
   const [from, setFrom] = useState<Date>(startOfMonth());
   const [to, setTo] = useState<Date>(new Date());
@@ -281,6 +309,15 @@ function DailyBarChart({ data }: { data: { date: string; amount: number }[] }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  tabRow: {
+    flexDirection: 'row', alignSelf: 'flex-start', gap: 3, padding: 3,
+    marginHorizontal: spacing.lg, marginTop: spacing.md,
+    borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+  },
+  tabItem: { paddingHorizontal: spacing.lg, paddingVertical: 8, borderRadius: radius.sm },
+  tabItemActive: { backgroundColor: colors.primary },
+  tabText: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
+  tabTextActive: { color: '#fff' },
   presetRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 6,
     paddingHorizontal: spacing.lg, paddingTop: spacing.md,

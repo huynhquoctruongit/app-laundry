@@ -10,6 +10,7 @@ import { OrderDetailScreen } from '@/screens/orders/OrderDetailScreen';
 import { OrderCreateScreen } from '@/screens/orders/OrderCreateScreen';
 import { BookingDetailScreen } from '@/screens/bookings/BookingDetailScreen';
 import { ScannerScreen } from '@/screens/scanner/ScannerScreen';
+import { TimeClockButton } from '@/components/common/TimeClockButton';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -75,6 +76,8 @@ export function RootNavigator({ navigationRef }: Props) {
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
       </Stack.Navigator>
+      {/* Nút chấm công nổi trên mọi màn hình (sau khi đăng nhập) */}
+      {token ? <TimeClockButton /> : null}
     </NavigationContainer>
   );
 }

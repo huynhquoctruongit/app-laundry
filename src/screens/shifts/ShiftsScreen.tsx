@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -14,9 +14,34 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
-import { formatDateTime, formatDate } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
+import { TimesheetMonthly } from './TimesheetMonthly';
+
+type Tab = 'timesheet' | 'store';
 
 export function ShiftsScreen() {
+  const [tab, setTab] = useState<Tab>('timesheet');
+  return (
+    <View style={styles.container}>
+      <View style={styles.tabs}>
+        <TabButton label="Chấm công theo tháng" active={tab === 'timesheet'} onPress={() => setTab('timesheet')} />
+        <TabButton label="Ca cửa hàng" active={tab === 'store'} onPress={() => setTab('store')} />
+      </View>
+      {tab === 'timesheet' ? <TimesheetMonthly /> : <StoreShifts />}
+    </View>
+  );
+}
+
+function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.tab, active && styles.tabActive]}>
+      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Ca cửa hàng (mở/đóng ca, điểm danh) — màn hình cũ. */
+function StoreShifts() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { isAdmin } = usePermissions();
@@ -307,6 +332,23 @@ function InfoCol({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  tab: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  tabTextActive: { color: '#fff' },
   shiftInfo: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
   subTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: spacing.sm },
   attendanceRow: {

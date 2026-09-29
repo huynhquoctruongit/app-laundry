@@ -33,7 +33,53 @@ export interface InventoryReport {
   recentExports: { date: string; itemName: string; quantity: number }[];
 }
 
+export interface ServiceTopCustomer {
+  customerId: string;
+  name: string;
+  phone: string | null;
+  revenue: number;
+  orderCount: number;
+  quantity: number;
+  weight: number;
+  lastAt: string;
+}
+
+export interface ServiceStat {
+  key: string;
+  productId: string | null;
+  name: string;
+  unit: string | null;
+  revenue: number;
+  /** % doanh thu tháng */
+  share: number;
+  orderCount: number;
+  customerCount: number;
+  quantity: number;
+  /** Tổng kg (dòng có cân) */
+  weight: number;
+  avgPerOrder: number;
+  prevRevenue: number;
+  /** % so với tháng trước; null = tháng trước không có */
+  growth: number | null;
+  topCustomers: ServiceTopCustomer[];
+}
+
+export interface ServiceStatsReport {
+  month: string;
+  prevMonth: string;
+  totalRevenue: number;
+  prevTotalRevenue: number;
+  growth: number | null;
+  totalOrders: number;
+  totalCustomers: number;
+  serviceCount: number;
+  services: ServiceStat[];
+}
+
 export const reportApi = {
+  /** month: "YYYY-MM" */
+  services: (month: string) =>
+    unwrap<ServiceStatsReport>(apiClient.get('/report/services', { params: { month } })),
   dashboard: (params: { date?: string } = {}) =>
     unwrap<DashboardReport>(apiClient.get('/report/dashboard', { params })),
   financial: (params: { from?: string; to?: string } = {}) =>
