@@ -30,7 +30,6 @@ import { FinanceScreen } from '@/screens/finance/FinanceScreen';
 import { DebtsScreen } from '@/screens/debts/DebtsScreen';
 import { DebtScreen } from '@/screens/debts/DebtScreen';
 import { ShiftsScreen } from '@/screens/shifts/ShiftsScreen';
-import { CashClosingScreen } from '@/screens/cash-closing/CashClosingScreen';
 import { ReportsScreen } from '@/screens/reports/ReportsScreen';
 import { StaffScreen } from '@/screens/staff/StaffScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
@@ -52,7 +51,6 @@ const NAV_ITEMS: { name: string; label: string; component: React.ComponentType<a
   { name: 'Finance', label: 'Thu chi', component: FinanceScreen, icon: 'wallet' },
   { name: 'Debts', label: 'Sổ nợ', component: DebtsScreen, icon: 'book-open-variant' },
   { name: 'Shifts', label: 'Ca làm việc', component: ShiftsScreen, icon: 'clock-outline' },
-  { name: 'CashClosing', label: 'Chốt két', component: CashClosingScreen, icon: 'cash-register' },
   { name: 'Reports', label: 'Báo cáo', component: ReportsScreen, icon: 'chart-bar' },
   { name: 'Staff', label: 'Nhân viên', component: StaffScreen, icon: 'account-cog', adminOnly: true },
   { name: 'Settings', label: 'Cài đặt', component: SettingsScreen, icon: 'cog', adminOnly: true },

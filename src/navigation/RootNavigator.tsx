@@ -11,6 +11,7 @@ import { OrderCreateScreen } from '@/screens/orders/OrderCreateScreen';
 import { BookingDetailScreen } from '@/screens/bookings/BookingDetailScreen';
 import { ScannerScreen } from '@/screens/scanner/ScannerScreen';
 import { TimeClockButton } from '@/components/common/TimeClockButton';
+import { CashClosingButton } from '@/components/common/CashClosingButton';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -78,6 +79,8 @@ export function RootNavigator({ navigationRef }: Props) {
       </Stack.Navigator>
       {/* Nút chấm công nổi trên mọi màn hình (sau khi đăng nhập) */}
       {token ? <TimeClockButton /> : null}
+      {/* Nút chốt két nổi góc trên phải */}
+      {token ? <CashClosingButton /> : null}
     </NavigationContainer>
   );
 }

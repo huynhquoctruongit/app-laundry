@@ -11,7 +11,7 @@ export interface CashClosing {
   expectedCash: number | string;
   countedCash: number | string;
   difference: number | string;
-  denominations: Record<string, number>;
+  denominations: Record<string, number> | null;
   note: string | null;
   createdAt: string;
   closedBy: { id: string; name: string };
@@ -27,7 +27,8 @@ export interface CashClosingPreview {
   cashFromOrders: number;
   /** đầu ngày + đã thu − chuyển khoản (chưa trừ chi phí) */
   expectedBeforeExpenses: number;
-  denominations: number[];
+  /** Chi phí mặc định mỗi ngày (cài đặt tiệm, vd 25k đá + cf ông Địa) */
+  defaultExpenses: number;
   closing: CashClosing | null;
 }
 
@@ -46,7 +47,8 @@ export interface CashClosingMonth {
 
 export interface CreateCashClosingPayload {
   date?: string;
-  denominations: Record<string, number>;
+  /** Tiền mặt đếm được trong két */
+  countedCash: number;
   expenses?: number;
   expenseNote?: string;
   note?: string;
@@ -57,7 +59,7 @@ export const cashClosingApi = {
     unwrap<CashClosingPreview>(apiClient.get('/cash-closings/preview', { params: date ? { date } : {} })),
   create: (payload: CreateCashClosingPayload) =>
     unwrap<CashClosing>(apiClient.post('/cash-closings', payload)),
-  /** ADMIN — month: "YYYY-MM" */
+  /** month: "YYYY-MM" */
   list: (month: string) =>
     unwrap<CashClosingMonth>(apiClient.get('/cash-closings', { params: { month } })),
   /** ADMIN — xoá để nhân viên chốt lại */

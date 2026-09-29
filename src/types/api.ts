@@ -245,6 +245,8 @@ export interface ShopSettings {
   smallOrderNote: string | null;
   /** Tiền lẻ để sẵn trong két đầu ngày (mặc định 750k) — dùng khi chốt két */
   openingCash?: number | string;
+  /** Chi phí mặc định mỗi ngày khi chốt két (mặc định 25k) */
+  defaultExpenses?: number | string;
   subscriptionEndsAt: string;
   currentPlan: string;
   subscriptionDaysRemaining: number;
