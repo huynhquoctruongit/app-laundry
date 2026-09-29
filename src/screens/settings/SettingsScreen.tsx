@@ -49,6 +49,7 @@ export function SettingsScreen() {
   const [invoiceShowQR, setInvoiceShowQR] = useState(true);
   const [invoiceShowDebt, setInvoiceShowDebt] = useState(false);
   const [openingHours, setOpeningHours] = useState('');
+  const [smallOrderNote, setSmallOrderNote] = useState('');
   const [bookingShippingFee, setBookingShippingFee] = useState('');
   const [bankBin, setBankBin] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
@@ -89,6 +90,7 @@ export function SettingsScreen() {
     setInvoiceShowQR(!!s.invoiceShowQR);
     setInvoiceShowDebt(!!s.invoiceShowDebt);
     setOpeningHours(s.openingHours ?? '');
+    setSmallOrderNote(s.smallOrderNote ?? '');
     setBookingShippingFee(
       s.bookingShippingFee != null ? String(s.bookingShippingFee) : '',
     );
@@ -434,6 +436,19 @@ export function SettingsScreen() {
                 placeholder="7:00 - 22:00"
               />
 
+              <Input
+                label={'Thông báo cho đơn "Dưới 3kg"'}
+                value={smallOrderNote}
+                onChangeText={setSmallOrderNote}
+                placeholder="Từ ngày 01/10, tiệm áp dụng giá tối thiểu 30.000đ/đơn cho đơn dưới 3kg…"
+                multiline
+                numberOfLines={3}
+                style={{ minHeight: 72, textAlignVertical: 'top' }}
+              />
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: -spacing.sm }}>
+                Đơn có dịch vụ "Dưới 3kg" in dòng chữ nhỏ này thay cho khung quảng cáo. Các đơn khác in khung như cũ. Để trống thì mọi đơn in khung như bình thường.
+              </Text>
+
               <Button
                 onPress={() =>
                   saveMutation.mutate({
@@ -448,6 +463,7 @@ export function SettingsScreen() {
                     invoiceShowQR,
                     invoiceShowDebt,
                     openingHours: openingHours || null,
+                    smallOrderNote: smallOrderNote.trim() || null,
                     bookingShippingFee: bookingShippingFee
                       ? Number(bookingShippingFee)
                       : null,

@@ -6,7 +6,7 @@
  */
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
-import { calcLineTotal } from '@/lib/utils';
+import { calcLineTotal, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
 
 export interface EscPosBackend {
@@ -229,12 +229,17 @@ export async function renderInvoice(backend: EscPosBackend, order: Order, settin
     await text(backend, twoCol('TONG CONG', fmtPrice(grandTotal)), { bold: true, fontSize: 26 });
   }
 
-  // ── 8. Promo banner — ngay sau tổng tiền ──
+  // ── 8. Promo banner — ngay sau tổng tiền (đơn dưới 3kg: dòng thông báo nhỏ) ──
   await divider(backend);
   await align(backend, ALIGN.CENTER);
-  await text(backend, 'VE SINH GIAY SACH', { bold: true, fontSize: 30 });
-  await text(backend, 'GIAT TOPPER', { bold: true, fontSize: 30 });
-  await text(backend, 'MEN DAY BAO SACH VA THOM', { bold: true, fontSize: 30 });
+  const smallNote = smallOrderNoteFor(order, settings);
+  if (smallNote) {
+    await text(backend, smallNote, { fontSize: 22 });
+  } else {
+    await text(backend, 'VE SINH GIAY SACH', { bold: true, fontSize: 30 });
+    await text(backend, 'GIAT TOPPER', { bold: true, fontSize: 30 });
+    await text(backend, 'MEN DAY BAO SACH VA THOM', { bold: true, fontSize: 30 });
+  }
 
   // ── 9. Footer: giờ mở cửa ở cuối cùng ──
   if (settings.openingHours) {

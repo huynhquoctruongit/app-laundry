@@ -12,7 +12,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
-import { calcLineTotal, orderCodeSuffix } from '@/lib/utils';
+import { calcLineTotal, orderCodeSuffix, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
 
 // Giấy 58mm → 384px. Giấy 80mm → 576px. Scale để font đủ lớn khi in.
@@ -54,6 +54,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
   const hasBankQr = Boolean(settings.invoiceShowQR && settings.bankBin && settings.bankAccountNumber);
   const hasBookingQr = Boolean(settings.bookingQrEnabled && settings.bookingQrUrl);
   const showBothQr = hasBankQr && hasBookingQr;
+  const smallNote = smallOrderNoteFor(order, settings);
 
   const Divider = () => (
     <View style={s.divider} />
@@ -155,18 +156,25 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
 
       <Divider />
 
-      {/* Promo banner — CTA nổi bật, ngay sau tổng tiền */}
-      <View style={{ height: 3 }} />
-      <View style={s.promoCta}>
-        <Text
-          style={s.promoText}
-          numberOfLines={3}
-          adjustsFontSizeToFit
-          minimumFontScale={0.6}
-        >
-          VỆ SINH GIÀY SẠCH{'\n'}GIẶT TOPPER{'\n'}MỀN DÀY BAO SẠCH VÀ THƠM
-        </Text>
-      </View>
+      {/* Promo banner — CTA nổi bật, ngay sau tổng tiền.
+          Đơn dưới 3kg: thay bằng dòng thông báo nhỏ, không khung. */}
+      {smallNote ? (
+        <Text style={[s.center, { marginVertical: 6 }]}>{smallNote}</Text>
+      ) : (
+        <>
+          <View style={{ height: 3 }} />
+          <View style={s.promoCta}>
+            <Text
+              style={s.promoText}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              VỆ SINH GIÀY SẠCH{'\n'}GIẶT TOPPER{'\n'}MỀN DÀY BAO SẠCH VÀ THƠM
+            </Text>
+          </View>
+        </>
+      )}
 
       {/* QR chuyển khoản + QR đặt lịch — nếu bật cả 2 thì chia 2 ô có khung + nhãn để không nhầm mã */}
       {showBothQr ? (

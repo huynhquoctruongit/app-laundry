@@ -239,6 +239,8 @@ export interface ShopSettings {
   allowNoShiftOrder: boolean;
   bookingQrEnabled: boolean;
   bookingQrUrl: string;
+  /** Đơn dưới 3kg: in dòng chữ nhỏ này thay cho khung quảng cáo */
+  smallOrderNote: string | null;
   subscriptionEndsAt: string;
   currentPlan: string;
   subscriptionDaysRemaining: number;

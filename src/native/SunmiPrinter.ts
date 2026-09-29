@@ -4,7 +4,7 @@ import * as SunmiPrinterLibrary from '@mitsuharu/react-native-sunmi-printer-libr
 import { captureRef } from 'react-native-view-shot';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
-import { calcLineTotal, formatCurrency } from '@/lib/utils';
+import { calcLineTotal, formatCurrency, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -317,8 +317,17 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.setTextStyle('bold', false);
     }
 
-    // ── 8. Promo banner — ngay sau tổng tiền ──
-    {
+    // ── 8. Promo banner — ngay sau tổng tiền (đơn dưới 3kg: dòng thông báo nhỏ, không khung) ──
+    const smallNote = smallOrderNoteFor(order, settings);
+    if (smallNote) {
+      await SunmiPrinterLibrary.setFontSize(24);
+      await divider('-');
+      await SunmiPrinterLibrary.setAlignment('center');
+      await SunmiPrinterLibrary.setFontSize(22);
+      await printVN(smallNote + '\n');
+      await SunmiPrinterLibrary.setFontSize(24);
+      await divider('-');
+    } else {
       const boxLine = '+' + '-'.repeat(LINE_WIDTH - 2) + '+';
       await SunmiPrinterLibrary.setFontSize(24);
       await divider('-');
