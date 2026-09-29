@@ -13,11 +13,13 @@ import {
   View,
 } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { cashClosingApi, type CashClosing } from '@/api/cashClosing.api';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useResponsive } from '@/hooks/useResponsive';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
@@ -33,34 +35,60 @@ function diffTone(diff: number) {
   return { bg: colors.warningLight, fg: '#92400e', text: `Dư ${formatCurrency(diff)}`, icon: 'alert' };
 }
 
-/** Nút tròn nổi góc trên phải mọi màn hình → popup chốt két cuối ngày. */
+/** Drawer cố định bên trái trên POS/tablet (khớp AppDrawer) → căn nút vào giữa header phần nội dung. */
+const POS_DRAWER_WIDTH = 240;
+
+/**
+ * Nút mở popup chốt két cuối ngày.
+ *  - POS/tablet: nút "Chốt két" nằm giữa thanh header
+ *  - Điện thoại: nút tròn nổi ngay trên nút "Vào ca"
+ */
 export function CashClosingButton() {
   const [open, setOpen] = useState(false);
+  const { isPhone } = useResponsive();
+  const insets = useSafeAreaInsets();
   const preview = useQuery({
     queryKey: ['cash-closing', 'preview'],
     queryFn: () => cashClosingApi.preview(),
     staleTime: 60_000,
   });
   const closed = Boolean(preview.data?.closing);
+  const openModal = () => {
+    preview.refetch();
+    setOpen(true);
+  };
+  const badge = (
+    <View style={styles.fabBadge}>
+      <Icon name="check" size={12} color="#fff" />
+    </View>
+  );
 
   return (
     <>
-      <Pressable
-        onPress={() => {
-          preview.refetch();
-          setOpen(true);
-        }}
-        style={({ pressed }) => [styles.fab, { opacity: pressed ? 0.85 : 1 }]}
-        accessibilityLabel="Chốt két"
-        hitSlop={8}
-      >
-        <Icon name="cash-register" size={28} color="#fff" />
-        {closed && (
-          <View style={styles.fabBadge}>
-            <Icon name="check" size={12} color="#fff" />
-          </View>
-        )}
-      </Pressable>
+      {isPhone ? (
+        <Pressable
+          onPress={openModal}
+          style={({ pressed }) => [styles.fab, { opacity: pressed ? 0.85 : 1 }]}
+          accessibilityLabel="Chốt két"
+          hitSlop={8}
+        >
+          <Icon name="cash-register" size={28} color="#fff" />
+          {closed && badge}
+        </Pressable>
+      ) : (
+        // Lớp phủ ngang header phần nội dung, chỉ nút nhận chạm (box-none)
+        <View pointerEvents="box-none" style={[styles.headerSlot, { top: insets.top + 8, left: POS_DRAWER_WIDTH }]}>
+          <Pressable
+            onPress={openModal}
+            style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.85 : 1 }]}
+            accessibilityLabel="Chốt két"
+          >
+            <Icon name="cash-register" size={22} color="#fff" />
+            <Text style={styles.headerBtnText}>{closed ? 'Đã chốt két' : 'Chốt két'}</Text>
+            {closed && badge}
+          </Pressable>
+        </View>
+      )}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
@@ -333,10 +361,11 @@ function Line({ label, value, muted, strong }: { label: string; value: string; m
 }
 
 const styles = StyleSheet.create({
+  // Ngay trên nút "Vào ca" (TimeClockButton: bottom 96, cao 60)
   fab: {
     position: 'absolute',
-    top: 72,
-    right: 16,
+    bottom: 168,
+    right: 20,
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -349,6 +378,22 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
   },
+  headerSlot: { position: 'absolute', right: 0, alignItems: 'center' },
+  headerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 40,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: '#4f46e5',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  headerBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   fabBadge: {
     position: 'absolute',
     top: -2,
