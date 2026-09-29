@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Card, CardContent } from '@/components/ui/Card';
 import { EmptyState } from '@/components/common/EmptyState';
+import { Button } from '@/components/ui/Button';
+import { DateTimeField } from '@/components/ui/DateTimeField';
+import { extractError } from '@/api/client';
+import { usePermissions } from '@/hooks/usePermissions';
 import { timesheetApi, type TimesheetEntry, type TimesheetUser } from '@/api/timesheet.api';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -29,6 +34,8 @@ function hours(v: number) {
 
 /** Thống kê chấm công theo tháng — ADMIN thấy mọi nhân viên, STAFF chỉ thấy mình. */
 export function TimesheetMonthly() {
+  const { isAdmin } = usePermissions();
+  const [editing, setEditing] = useState<{ entry: TimesheetEntry; name: string } | null>(null);
   const [cursor, setCursor] = useState(() => new Date());
   const month = monthKey(cursor);
   const shiftMonth = (delta: number) =>
@@ -73,11 +80,86 @@ export function TimesheetMonthly() {
           </Card>
 
           {data.users.map((u) => (
-            <UserCard key={u.userId} user={u} defaultOpen={data.users.length === 1} />
+            <UserCard
+              key={u.userId}
+              user={u}
+              defaultOpen={data.users.length === 1}
+              onEdit={isAdmin ? (entry) => setEditing({ entry, name: u.name }) : undefined}
+            />
           ))}
         </>
       )}
+      {editing && (
+        <EditEntryModal entry={editing.entry} name={editing.name} onClose={() => setEditing(null)} />
+      )}
     </ScrollView>
+  );
+}
+
+/** ADMIN sửa giờ vào/ra hoặc xoá 1 ca chấm công. */
+function EditEntryModal({ entry, name, onClose }: { entry: TimesheetEntry; name: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [checkIn, setCheckIn] = useState<Date | null>(new Date(entry.checkIn));
+  const [checkOut, setCheckOut] = useState<Date | null>(entry.checkOut ? new Date(entry.checkOut) : null);
+  const [open, setOpen] = useState(!entry.checkOut);
+
+  const done = (msg: string) => {
+    Toast.show({ type: 'success', text1: msg });
+    qc.invalidateQueries({ queryKey: ['timesheet'] });
+    onClose();
+  };
+  const save = useMutation({
+    mutationFn: () =>
+      timesheetApi.update(entry.id, {
+        checkIn: checkIn!.toISOString(),
+        checkOut: open ? null : checkOut!.toISOString(),
+      }),
+    onSuccess: () => done('Đã sửa ca chấm công'),
+    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+  const remove = useMutation({
+    mutationFn: () => timesheetApi.remove(entry.id),
+    onSuccess: () => done('Đã xoá ca chấm công'),
+    onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
+  });
+  const badOrder = !open && !!checkIn && !!checkOut && checkOut <= checkIn;
+  const invalid = !checkIn || (!open && !checkOut) || badOrder;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Sửa ca chấm công — {name}</Text>
+          <DateTimeField label="Giờ vào ca" value={checkIn} onChange={setCheckIn} />
+          <DateTimeField label="Giờ kết ca" value={checkOut} onChange={setCheckOut} disabled={open} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.text }}>Chưa kết ca (đang làm)</Text>
+            <Switch value={open} onValueChange={setOpen} />
+          </View>
+          {badOrder && <Text style={{ color: colors.danger, fontSize: 12 }}>Giờ kết ca phải sau giờ vào ca</Text>}
+          <Text style={styles.note}>Giờ tính lương vẫn làm tròn 30 phút gần nhất.</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+            <Button
+              variant="outline"
+              style={{ flex: 1, borderColor: colors.danger }}
+              loading={remove.isPending}
+              onPress={() =>
+                Alert.alert('Xoá ca chấm công', `Xoá ca này của ${name}?`, [
+                  { text: 'Huỷ', style: 'cancel' },
+                  { text: 'Xoá', style: 'destructive', onPress: () => remove.mutate() },
+                ])
+              }
+            >
+              <Text style={{ color: colors.danger }}>Xoá</Text>
+            </Button>
+            <Button variant="outline" style={{ flex: 1 }} onPress={onClose}>Huỷ</Button>
+            <Button style={{ flex: 1 }} disabled={invalid} loading={save.isPending} onPress={() => save.mutate()}>
+              Lưu
+            </Button>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -90,7 +172,9 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
-function UserCard({ user, defaultOpen }: { user: TimesheetUser; defaultOpen: boolean }) {
+function UserCard({ user, defaultOpen, onEdit }: {
+  user: TimesheetUser; defaultOpen: boolean; onEdit?: (entry: TimesheetEntry) => void;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Card>
@@ -107,7 +191,7 @@ function UserCard({ user, defaultOpen }: { user: TimesheetUser; defaultOpen: boo
       {open && (
         <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs }}>
           {user.entries.map((e) => (
-            <EntryRow key={e.id} entry={e} />
+            <EntryRow key={e.id} entry={e} onEdit={onEdit ? () => onEdit(e) : undefined} />
           ))}
         </View>
       )}
@@ -115,7 +199,7 @@ function UserCard({ user, defaultOpen }: { user: TimesheetUser; defaultOpen: boo
   );
 }
 
-function EntryRow({ entry: e }: { entry: TimesheetEntry }) {
+function EntryRow({ entry: e, onEdit }: { entry: TimesheetEntry; onEdit?: () => void }) {
   const d = new Date(e.checkIn);
   const inProgress = !e.roundedOut;
   return (
@@ -140,6 +224,11 @@ function EntryRow({ entry: e }: { entry: TimesheetEntry }) {
             {hours(e.hours)} × {e.rate / 1000}k
           </Text>
         </View>
+      )}
+      {onEdit && (
+        <Pressable onPress={onEdit} hitSlop={8} style={{ paddingLeft: 4 }}>
+          <Icon name="pencil-outline" size={20} color={colors.primary} />
+        </Pressable>
       )}
     </View>
   );
@@ -189,4 +278,7 @@ const styles = StyleSheet.create({
   entryTime: { fontSize: 15, fontWeight: '600', color: colors.text },
   entryRaw: { fontSize: 11, color: colors.textMuted },
   entryAmount: { fontSize: 15, fontWeight: '700', color: colors.text },
+  backdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  modalCard: { width: '100%', maxWidth: 480, backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
 });

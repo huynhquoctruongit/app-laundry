@@ -22,6 +22,13 @@
     <!-- USB printer (wired, OTG) — không bắt buộc: máy không có USB host mode vẫn cài được app -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
+    <!-- Android 11+: cần khai báo để tìm được bộ đọc giọng nói (đọc "Đã nhận … đồng") -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"

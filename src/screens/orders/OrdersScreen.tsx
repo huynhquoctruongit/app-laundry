@@ -237,6 +237,11 @@ export function OrdersScreen() {
                   <Text style={styles.customer}>{item.customer?.name ?? '—'}</Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
                     <OrderStatusBadge status={item.status} />
+                    {Number(item.transferredAmount ?? 0) > 0 && (
+                      <View style={styles.transferBadge}>
+                        <Text style={styles.transferBadgeText}>ĐÃ CK</Text>
+                      </View>
+                    )}
                     {item.fromBooking && (
                       <View style={styles.shipBadge}>
                         <Text style={styles.shipBadgeText}>SHIPPING</Text>
@@ -307,6 +312,8 @@ const styles = StyleSheet.create({
   customer: { fontSize: 18, fontWeight: '800', color: colors.text },
   meta: { fontSize: 12, color: colors.textMuted },
   amount: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  transferBadge: { backgroundColor: colors.successLight, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
+  transferBadgeText: { fontSize: 11, fontWeight: '800', color: '#047857' },
   shipBadge: {
     backgroundColor: '#000',
     borderRadius: 99,

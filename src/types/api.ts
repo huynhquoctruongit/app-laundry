@@ -84,6 +84,8 @@ export interface Order {
   pickupAt?: string | null;
   deliveredAt?: string | null;
   paidAt?: string | null;
+  /** Tổng khách đã chuyển khoản cho đơn (khớp tự động theo mã đơn trong nội dung CK) */
+  transferredAmount?: number | string;
   /** Đơn nợ = đã giao nhưng chưa thu tiền (treo, chưa vào lợi nhuận) */
   isDebt?: boolean;
   customerId: string;

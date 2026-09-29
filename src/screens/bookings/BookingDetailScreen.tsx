@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +18,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { BookingStatusBadge } from '@/components/common/BookingStatusBadge';
-import { bookingApi, type UpdateBookingPayload } from '@/api/booking.api';
+import { bookingApi, type BookingItemPayload, type UpdateBookingPayload } from '@/api/booking.api';
+import { productApi } from '@/api/product.api';
+import { DateTimeField } from '@/components/ui/DateTimeField';
 import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { colors } from '@/theme/colors';
@@ -26,6 +29,10 @@ import { calcLineTotal, formatCurrency, formatDateTime } from '@/lib/utils';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 
 type R = RouteProp<RootStackParamList, 'BookingDetail'>;
+
+type EditItem = BookingItemPayload & { key: string };
+let itemKey = 0;
+const nextKey = () => `i${++itemKey}`;
 
 export function BookingDetailScreen() {
   const route = useRoute<R>();
@@ -44,6 +51,16 @@ export function BookingDetailScreen() {
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editNote, setEditNote] = useState('');
+  const [editPickupAt, setEditPickupAt] = useState<Date | null>(null);
+  const [editDeliveryAt, setEditDeliveryAt] = useState<Date | null>(null);
+  const [editItems, setEditItems] = useState<EditItem[]>([]);
+  const [pickingProduct, setPickingProduct] = useState(false);
+
+  const productsQuery = useQuery({
+    queryKey: ['products', 'active-all'],
+    queryFn: () => productApi.list({ isActive: true, pageSize: 100 }),
+    enabled: editOpen,
+  });
 
   const statusMutation = useMutation({
     mutationFn: (status: 'CONFIRMED' | 'CANCELLED') =>
@@ -86,6 +103,19 @@ export function BookingDetailScreen() {
     setEditPhone(b.phone ?? '');
     setEditAddress(b.address ?? '');
     setEditNote(b.note ?? '');
+    setEditPickupAt(b.pickupAt ? new Date(b.pickupAt) : null);
+    setEditDeliveryAt(b.deliveryAt ? new Date(b.deliveryAt) : null);
+    setEditItems(
+      b.items.map((i) => ({
+        key: nextKey(),
+        productId: i.productId ?? undefined,
+        name: i.name,
+        quantity: i.quantity,
+        weight: i.weight ? Number(i.weight) : undefined,
+        unitPrice: Number(i.unitPrice),
+      })),
+    );
+    setPickingProduct(false);
     setEditOpen(true);
   }
 
@@ -123,6 +153,7 @@ export function BookingDetailScreen() {
   const canModerate = canEdit && (b.status === 'PENDING' || b.status === 'CONFIRMED');
   // Nhân viên có quyền "Tạo đơn" được phép chuyển đặt lịch thành đơn (backend authStaff)
   const canConvert = canCreateOrder && (b.status === 'PENDING' || b.status === 'CONFIRMED');
+  const isConverted = b.status === 'CONVERTED';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
@@ -234,20 +265,106 @@ export function BookingDetailScreen() {
         </View>
       )}
 
-      {/* Edit modal */}
+      {/* Edit modal (ADMIN) */}
       <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Sửa đặt lịch</Text>
-            <Input label="Số điện thoại" value={editPhone} onChangeText={setEditPhone} keyboardType="phone-pad" />
-            <Input label="Địa chỉ" value={editAddress} onChangeText={setEditAddress} />
-            <Input label="Ghi chú" value={editNote} onChangeText={setEditNote} multiline numberOfLines={3} style={{ minHeight: 72, textAlignVertical: 'top' }} />
+            <ScrollView contentContainerStyle={{ gap: spacing.md }} keyboardShouldPersistTaps="handled">
+              <Input label="Số điện thoại" value={editPhone} onChangeText={setEditPhone} keyboardType="phone-pad" />
+              <Input label="Địa chỉ" value={editAddress} onChangeText={setEditAddress} />
+              <DateTimeField label="Thời gian lấy đồ" value={editPickupAt} onChange={setEditPickupAt} clearable />
+              <DateTimeField label="Thời gian giao trả" value={editDeliveryAt} onChange={setEditDeliveryAt} clearable />
+
+              {isConverted ? (
+                <Text style={styles.modalSub}>
+                  Đặt lịch đã chuyển thành đơn — sửa dịch vụ ở đơn {b.convertedOrder?.code}.
+                </Text>
+              ) : (
+                <View style={{ gap: spacing.sm }}>
+                  <Text style={styles.editLabel}>Dịch vụ</Text>
+                  {editItems.map((it) => {
+                    const set = (patch: Partial<EditItem>) =>
+                      setEditItems((list) => list.map((x) => (x.key === it.key ? { ...x, ...patch } : x)));
+                    return (
+                      <View key={it.key} style={styles.editItem}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                          <TextInput
+                            style={[styles.editInput, { flex: 1 }]}
+                            value={it.name}
+                            onChangeText={(v) => set({ name: v })}
+                          />
+                          <Pressable
+                            hitSlop={8}
+                            onPress={() => setEditItems((list) => list.filter((x) => x.key !== it.key))}
+                          >
+                            <Icon name="close-circle" size={24} color={colors.danger} />
+                          </Pressable>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                          <NumField label="SL" value={it.quantity} onChange={(v) => set({ quantity: Math.max(1, Math.round(v ?? 1)) })} />
+                          <NumField label="Kg" value={it.weight} decimal onChange={(v) => set({ weight: v || undefined })} />
+                          <NumField label="Đơn giá" value={it.unitPrice} onChange={(v) => set({ unitPrice: Math.max(0, v ?? 0) })} flex={1.6} />
+                        </View>
+                      </View>
+                    );
+                  })}
+
+                  {pickingProduct ? (
+                    <View style={styles.productPicker}>
+                      {(productsQuery.data?.items ?? []).map((p) => (
+                        <Pressable
+                          key={p.id}
+                          style={styles.productRow}
+                          onPress={() => {
+                            setEditItems((list) => [
+                              ...list,
+                              { key: nextKey(), productId: p.id, name: p.name, quantity: 1, unitPrice: Number(p.price) },
+                            ]);
+                            setPickingProduct(false);
+                          }}
+                        >
+                          <Text style={{ flex: 1, color: colors.text }}>{p.name}</Text>
+                          <Text style={{ color: colors.textMuted }}>{formatCurrency(p.price)}/{p.unit}</Text>
+                        </Pressable>
+                      ))}
+                      {productsQuery.isLoading && <ActivityIndicator color={colors.primary} />}
+                    </View>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      leftIcon={<Icon name="plus" size={20} color={colors.primary} />}
+                      onPress={() => setPickingProduct(true)}
+                    >
+                      Thêm dịch vụ
+                    </Button>
+                  )}
+                  <Text style={{ textAlign: 'right', color: colors.text }}>
+                    Tạm tính <Text style={{ fontWeight: '800' }}>{formatCurrency(editItems.reduce((s, i) => s + calcLineTotal(i), 0))}</Text>
+                  </Text>
+                </View>
+              )}
+
+              <Input label="Ghi chú" value={editNote} onChangeText={setEditNote} multiline numberOfLines={3} style={{ minHeight: 72, textAlignVertical: 'top' }} />
+            </ScrollView>
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
               <Button variant="outline" style={{ flex: 1 }} onPress={() => setEditOpen(false)}>Huỷ</Button>
               <Button
                 style={{ flex: 1 }}
                 loading={updateMutation.isPending}
-                onPress={() => updateMutation.mutate({ phone: editPhone, address: editAddress, note: editNote || null })}
+                disabled={!isConverted && (editItems.length === 0 || editItems.some((i) => !i.name.trim()))}
+                onPress={() =>
+                  updateMutation.mutate({
+                    phone: editPhone,
+                    address: editAddress,
+                    note: editNote || null,
+                    pickupAt: editPickupAt ? editPickupAt.toISOString() : null,
+                    deliveryAt: editDeliveryAt ? editDeliveryAt.toISOString() : null,
+                    ...(isConverted
+                      ? {}
+                      : { items: editItems.map(({ key: _key, ...i }) => ({ ...i, weight: i.weight || undefined })) }),
+                  })
+                }
               >
                 Lưu
               </Button>
@@ -257,6 +374,30 @@ export function BookingDetailScreen() {
       </Modal>
 
     </ScrollView>
+  );
+}
+
+/** Ô nhập số nhỏ có nhãn (SL / Kg / Đơn giá) */
+function NumField({ label, value, onChange, decimal, flex = 1 }: {
+  label: string; value: number | undefined; onChange: (v: number | undefined) => void; decimal?: boolean; flex?: number;
+}) {
+  const [text, setText] = useState(value !== undefined ? String(value) : '');
+  return (
+    <View style={{ flex, gap: 2 }}>
+      <Text style={{ fontSize: 11, color: colors.textMuted }}>{label}</Text>
+      <TextInput
+        style={styles.editInput}
+        keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
+        value={text}
+        placeholder="—"
+        onChangeText={(t) => {
+          const clean = t.replace(',', '.');
+          setText(clean);
+          const n = Number(clean);
+          onChange(clean === '' || isNaN(n) ? undefined : n);
+        }}
+      />
+    </View>
   );
 }
 
@@ -293,6 +434,17 @@ const styles = StyleSheet.create({
     maxHeight: '92%',
   },
   modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+  editLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
+  editItem: { gap: spacing.sm, padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  editInput: {
+    height: 42, paddingHorizontal: spacing.sm, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text, fontSize: 15,
+  },
+  productPicker: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, maxHeight: 240, overflow: 'hidden' },
+  productRow: {
+    flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
   modalSub: { fontSize: 13, color: colors.textMuted },
   modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   itemCard: {

@@ -30,6 +30,8 @@ export interface UpdateBookingPayload {
   address?: string;
   pickupAt?: string | null;
   deliveryAt?: string | null;
+  /** Gửi = thay toàn bộ danh sách dịch vụ (chỉ ADMIN, không áp dụng khi đã chuyển đơn) */
+  items?: BookingItemPayload[];
 }
 
 export const bookingApi = {

@@ -17,6 +17,9 @@ export interface TodayTransfers {
 }
 
 export const bankApi = {
+  /** Máy POS quầy đăng ký / huỷ nhận báo "đã nhận chuyển khoản" theo đơn */
+  setPosDevice: (token: string, enabled = true) =>
+    unwrap<{ enabled: boolean }>(apiClient.put('/bank/pos-device', { token, enabled })),
   today: (params: { date?: string } = {}) =>
     unwrap<TodayTransfers>(apiClient.get('/bank/today', { params })),
 };

@@ -165,6 +165,12 @@ export function OrderDetailScreen() {
             <Text style={styles.codeSub}>Mã đơn: {order.code}</Text>
           </View>
           <OrderStatusBadge status={order.status} />
+          {Number(order.transferredAmount ?? 0) > 0 && (
+            <View style={styles.transferChip}>
+              <Icon name="bank-check" size={13} color="#047857" />
+              <Text style={styles.transferChipText}>CK {formatCurrency(Number(order.transferredAmount))}</Text>
+            </View>
+          )}
           {order.isDebt && (
             <View style={styles.debtChip}>
               <Icon name="cash-clock" size={13} color={colors.danger} />
@@ -427,6 +433,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   bookingChipText: { fontSize: 12, fontWeight: '700', color: '#0369a1' },
+  transferChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.successLight, borderRadius: 99,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  transferChipText: { fontSize: 12, fontWeight: '700', color: '#047857' },
   debtChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: colors.dangerLight, borderRadius: 99,
