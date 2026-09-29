@@ -243,6 +243,8 @@ export interface ShopSettings {
   bookingQrUrl: string;
   /** Đơn dưới 3kg: in dòng chữ nhỏ này thay cho khung quảng cáo */
   smallOrderNote: string | null;
+  /** Tiền lẻ để sẵn trong két đầu ngày (mặc định 750k) — dùng khi chốt két */
+  openingCash?: number | string;
   subscriptionEndsAt: string;
   currentPlan: string;
   subscriptionDaysRemaining: number;

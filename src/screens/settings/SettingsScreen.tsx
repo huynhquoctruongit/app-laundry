@@ -50,6 +50,7 @@ export function SettingsScreen() {
   const [invoiceShowDebt, setInvoiceShowDebt] = useState(false);
   const [openingHours, setOpeningHours] = useState('');
   const [smallOrderNote, setSmallOrderNote] = useState('');
+  const [openingCash, setOpeningCash] = useState('750000');
   const [bookingShippingFee, setBookingShippingFee] = useState('');
   const [bankBin, setBankBin] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
@@ -91,6 +92,7 @@ export function SettingsScreen() {
     setInvoiceShowDebt(!!s.invoiceShowDebt);
     setOpeningHours(s.openingHours ?? '');
     setSmallOrderNote(s.smallOrderNote ?? '');
+    setOpeningCash(String(Number(s.openingCash ?? 750000)));
     setBookingShippingFee(
       s.bookingShippingFee != null ? String(s.bookingShippingFee) : '',
     );
@@ -437,6 +439,14 @@ export function SettingsScreen() {
               />
 
               <Input
+                label="Tiền đầu ngày trong két (dùng khi chốt két)"
+                value={openingCash ? Number(openingCash).toLocaleString('vi-VN') : ''}
+                onChangeText={(t) => setOpeningCash(t.replace(/\D/g, ''))}
+                keyboardType="number-pad"
+                placeholder="750.000"
+              />
+
+              <Input
                 label={'Thông báo cho đơn "Dưới 3kg"'}
                 value={smallOrderNote}
                 onChangeText={setSmallOrderNote}
@@ -464,6 +474,7 @@ export function SettingsScreen() {
                     invoiceShowDebt,
                     openingHours: openingHours || null,
                     smallOrderNote: smallOrderNote.trim() || null,
+                    openingCash: Number(openingCash) || 0,
                     bookingShippingFee: bookingShippingFee
                       ? Number(bookingShippingFee)
                       : null,
