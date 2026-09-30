@@ -29,6 +29,8 @@ export interface CashClosingPreview {
   expectedBeforeExpenses: number;
   /** Chi phí mặc định mỗi ngày (cài đặt tiệm, vd 25k đá + cf ông Địa) */
   defaultExpenses: number;
+  /** Giờ đóng cửa "HH:mm" — nhắc chốt két trước 10 phút */
+  closeTime: string;
   closing: CashClosing | null;
 }
 

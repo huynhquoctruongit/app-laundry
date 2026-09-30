@@ -52,6 +52,7 @@ export function SettingsScreen() {
   const [smallOrderNote, setSmallOrderNote] = useState('');
   const [openingCash, setOpeningCash] = useState('750000');
   const [defaultExpenses, setDefaultExpenses] = useState('25000');
+  const [closeTime, setCloseTime] = useState('21:30');
   const [bookingShippingFee, setBookingShippingFee] = useState('');
   const [bankBin, setBankBin] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
@@ -95,6 +96,7 @@ export function SettingsScreen() {
     setSmallOrderNote(s.smallOrderNote ?? '');
     setOpeningCash(String(Number(s.openingCash ?? 750000)));
     setDefaultExpenses(String(Number(s.defaultExpenses ?? 25000)));
+    setCloseTime(s.closeTime ?? '21:30');
     setBookingShippingFee(
       s.bookingShippingFee != null ? String(s.bookingShippingFee) : '',
     );
@@ -457,6 +459,20 @@ export function SettingsScreen() {
               />
 
               <Input
+                label="Giờ đóng cửa (HH:mm) — trước 10 phút nút Chốt két rung + kêu nhắc"
+                value={closeTime}
+                onChangeText={(t) => {
+                  // Tự chèn dấu ":" khi gõ 4 số (2130 → 21:30)
+                  const d = t.replace(/\D/g, '').slice(0, 4);
+                  setCloseTime(d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d);
+                }}
+                keyboardType="number-pad"
+                placeholder="21:30"
+                maxLength={5}
+                scanCapture={false}
+              />
+
+              <Input
                 label={'Thông báo cho đơn "Dưới 3kg"'}
                 value={smallOrderNote}
                 onChangeText={setSmallOrderNote}
@@ -486,6 +502,7 @@ export function SettingsScreen() {
                     smallOrderNote: smallOrderNote.trim() || null,
                     openingCash: Number(openingCash) || 0,
                     defaultExpenses: Number(defaultExpenses) || 0,
+                    ...(/^([01]\d|2[0-3]):[0-5]\d$/.test(closeTime) ? { closeTime } : {}),
                     bookingShippingFee: bookingShippingFee
                       ? Number(bookingShippingFee)
                       : null,

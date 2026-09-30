@@ -60,6 +60,21 @@ function init(): Promise<boolean> {
 }
 init();
 
+/** Đọc to 1 câu tiếng Việt (vd nhắc chốt két). Không có giọng Việt → tiếng đồng xu. */
+export async function speakText(text: string) {
+  try {
+    const ok = await init();
+    if (!ok) {
+      playCoinSound();
+      return;
+    }
+    Tts.stop();
+    Tts.speak(text);
+  } catch {
+    playCoinSound();
+  }
+}
+
 /** Đọc to "Đã nhận … đồng" như loa. Máy không có giọng tiếng Việt → phát tiếng đồng xu. */
 export async function speakReceived(amount: number) {
   try {

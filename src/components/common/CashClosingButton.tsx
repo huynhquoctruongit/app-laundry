@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
+  Vibration,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -23,6 +26,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { speakText } from '@/lib/speech';
 
 const pad2 = (n: number) => n.toString().padStart(2, '0');
 const dm = (date: string) => date.split('-').reverse().slice(0, 2).join('/');
@@ -33,6 +37,71 @@ function diffTone(diff: number) {
   if (diff === 0) return { bg: colors.successLight, fg: '#047857', text: 'Két khớp', icon: 'check-circle' };
   if (diff < 0) return { bg: colors.dangerLight, fg: '#b91c1c', text: `Thiếu ${formatCurrency(-diff)}`, icon: 'alert-circle' };
   return { bg: colors.warningLight, fg: '#92400e', text: `Dư ${formatCurrency(diff)}`, icon: 'alert' };
+}
+
+/** Nhắc trước giờ đóng cửa bao nhiêu phút */
+const REMIND_BEFORE_MIN = 10;
+/** Lặp lại tiếng nhắc mỗi … phút cho tới khi chốt */
+const REPEAT_REMIND_MIN = 5;
+
+/**
+ * Đến (giờ đóng cửa − 10') mà hôm nay chưa chốt két → trả true (nút rung) và
+ * rung máy + đọc to nhắc nhân viên, lặp lại mỗi 5' cho tới khi chốt hoặc qua ngày.
+ */
+function useCloseReminder(closeTime: string | undefined, closed: boolean, ready: boolean) {
+  const [alerting, setAlerting] = useState(false);
+  const lastRemindAt = useRef(0);
+
+  useEffect(() => {
+    if (!ready || closed || !closeTime || !/^\d{2}:\d{2}$/.test(closeTime)) {
+      setAlerting(false);
+      return;
+    }
+    const [h, m] = closeTime.split(':').map(Number);
+    const check = () => {
+      const now = new Date();
+      const remindAt = new Date(now);
+      remindAt.setHours(h, m - REMIND_BEFORE_MIN, 0, 0);
+      const due = now >= remindAt;
+      setAlerting(due);
+      if (due && Date.now() - lastRemindAt.current >= REPEAT_REMIND_MIN * 60_000) {
+        lastRemindAt.current = Date.now();
+        Vibration.vibrate([0, 400, 200, 400, 200, 400]);
+        speakText('Sắp đến giờ đóng cửa, vui lòng chốt két');
+      }
+    };
+    check();
+    const t = setInterval(check, 30_000);
+    return () => clearInterval(t);
+  }, [closeTime, closed, ready]);
+
+  return alerting;
+}
+
+/** Hiệu ứng lắc nút liên tục khi đang nhắc */
+function useShake(active: boolean) {
+  const value = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!active) {
+      value.setValue(0);
+      return;
+    }
+    const shake = Animated.sequence([
+      ...[1, -1, 1, -1, 1, 0].map((to) =>
+        Animated.timing(value, { toValue: to, duration: 70, easing: Easing.linear, useNativeDriver: true }),
+      ),
+      Animated.delay(900),
+    ]);
+    const loop = Animated.loop(shake);
+    loop.start();
+    return () => loop.stop();
+  }, [active, value]);
+  return {
+    transform: [
+      { rotate: value.interpolate({ inputRange: [-1, 1], outputRange: ['-14deg', '14deg'] }) },
+      { scale: value.interpolate({ inputRange: [-1, 0, 1], outputRange: [1.08, 1, 1.08] }) },
+    ],
+  };
 }
 
 /** Drawer cố định bên trái trên POS/tablet (khớp AppDrawer) → căn nút vào giữa header phần nội dung. */
@@ -51,8 +120,11 @@ export function CashClosingButton() {
     queryKey: ['cash-closing', 'preview'],
     queryFn: () => cashClosingApi.preview(),
     staleTime: 60_000,
+    refetchInterval: 5 * 60_000, // cập nhật trạng thái đã chốt (máy khác chốt) để tắt nhắc
   });
   const closed = Boolean(preview.data?.closing);
+  const alerting = useCloseReminder(preview.data?.closeTime, closed, !!preview.data);
+  const shakeStyle = useShake(alerting);
   const openModal = () => {
     preview.refetch();
     setOpen(true);
@@ -66,27 +138,33 @@ export function CashClosingButton() {
   return (
     <>
       {isPhone ? (
-        <Pressable
-          onPress={openModal}
-          style={({ pressed }) => [styles.fab, { opacity: pressed ? 0.85 : 1 }]}
-          accessibilityLabel="Chốt két"
-          hitSlop={8}
-        >
-          <Icon name="cash-register" size={28} color="#fff" />
-          {closed && badge}
-        </Pressable>
+        <Animated.View style={[styles.fabWrap, shakeStyle]}>
+          <Pressable
+            onPress={openModal}
+            style={({ pressed }) => [styles.fab, alerting && styles.alerting, { opacity: pressed ? 0.85 : 1 }]}
+            accessibilityLabel="Chốt két"
+            hitSlop={8}
+          >
+            <Icon name="cash-register" size={28} color="#fff" />
+            {closed && badge}
+          </Pressable>
+        </Animated.View>
       ) : (
         // Lớp phủ ngang header phần nội dung, chỉ nút nhận chạm (box-none)
         <View pointerEvents="box-none" style={[styles.headerSlot, { top: insets.top + 8, left: POS_DRAWER_WIDTH }]}>
-          <Pressable
-            onPress={openModal}
-            style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.85 : 1 }]}
-            accessibilityLabel="Chốt két"
-          >
-            <Icon name="cash-register" size={22} color="#fff" />
-            <Text style={styles.headerBtnText}>{closed ? 'Đã chốt két' : 'Chốt két'}</Text>
-            {closed && badge}
-          </Pressable>
+          <Animated.View style={shakeStyle}>
+            <Pressable
+              onPress={openModal}
+              style={({ pressed }) => [styles.headerBtn, alerting && styles.alerting, { opacity: pressed ? 0.85 : 1 }]}
+              accessibilityLabel="Chốt két"
+            >
+              <Icon name={alerting ? 'bell-ring' : 'cash-register'} size={22} color="#fff" />
+              <Text style={styles.headerBtnText}>
+                {closed ? 'Đã chốt két' : alerting ? 'Đến giờ chốt két!' : 'Chốt két'}
+              </Text>
+              {closed && badge}
+            </Pressable>
+          </Animated.View>
         </View>
       )}
 
@@ -259,7 +337,7 @@ function ClosedSummary({ c }: { c: CashClosing }) {
 }
 
 /** Sổ chốt két tháng hiện tại — hiện ngay sau khi chốt. Chủ tiệm xoá được để chốt lại. */
-function ClosingBook() {
+export function ClosingBook({ showSummary = false }: { showSummary?: boolean }) {
   const qc = useQueryClient();
   const { isAdmin } = usePermissions();
   const [cursor, setCursor] = useState(() => new Date());
@@ -299,9 +377,13 @@ function ClosingBook() {
         <Text style={styles.hint}>Chưa có ngày nào chốt két trong tháng.</Text>
       ) : (
         <>
-          <Text style={styles.hint}>
-            {data.totals.days} ngày · tổng lệch {formatCurrency(data.totals.difference)} ({data.totals.mismatchDays} ngày lệch)
-          </Text>
+          {showSummary ? (
+            <MonthSummary totals={data.totals} />
+          ) : (
+            <Text style={styles.hint}>
+              {data.totals.days} ngày · tổng lệch {formatCurrency(data.totals.difference)} ({data.totals.mismatchDays} ngày lệch)
+            </Text>
+          )}
           {data.items.map((c) => {
             const tone = diffTone(Number(c.difference));
             const expanded = openId === c.id;
@@ -351,6 +433,36 @@ function ClosingBook() {
   );
 }
 
+/** Tổng hợp tháng: tổng lệch nổi bật + số ngày, đã thu, chuyển khoản, chi phí */
+function MonthSummary({ totals }: { totals: import('@/api/cashClosing.api').CashClosingMonth['totals'] }) {
+  const tone = diffTone(totals.difference);
+  return (
+    <View style={{ gap: spacing.sm }}>
+      <View style={[styles.result, { backgroundColor: tone.bg, flexDirection: 'column', gap: 2 }]}>
+        <Text style={{ color: tone.fg, fontSize: 13, fontWeight: '600' }}>Tổng lệch trong tháng</Text>
+        <Text style={[styles.resultText, { color: tone.fg }]}>
+          {totals.difference === 0 ? 'Không lệch' : `${totals.difference < 0 ? 'Thiếu' : 'Dư'} ${formatCurrency(Math.abs(totals.difference))}`}
+        </Text>
+        <Text style={{ color: tone.fg, fontSize: 13 }}>
+          {totals.days} ngày đã chốt · {totals.mismatchDays} ngày lệch
+        </Text>
+      </View>
+      <View style={styles.summaryGrid}>
+        {[
+          { label: 'Tổng đã thu', value: totals.collected },
+          { label: 'Tổng chuyển khoản', value: totals.transfers },
+          { label: 'Tổng chi phí', value: totals.expenses },
+        ].map((s) => (
+          <View key={s.label} style={styles.summaryCell}>
+            <Text style={styles.hint}>{s.label}</Text>
+            <Text style={styles.lineValue}>{formatCurrency(s.value)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function Line({ label, value, muted, strong }: { label: string; value: string; muted?: boolean; strong?: boolean }) {
   return (
     <View style={styles.lineRow}>
@@ -362,10 +474,14 @@ function Line({ label, value, muted, strong }: { label: string; value: string; m
 
 const styles = StyleSheet.create({
   // Ngay trên nút "Vào ca" (TimeClockButton: bottom 96, cao 60)
+  fabWrap: { position: 'absolute', bottom: 168, right: 20 },
+  alerting: { backgroundColor: '#dc2626' },
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  summaryCell: {
+    flexGrow: 1, flexBasis: 140, padding: spacing.md, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border, gap: 2,
+  },
   fab: {
-    position: 'absolute',
-    bottom: 168,
-    right: 20,
     width: 60,
     height: 60,
     borderRadius: 30,
