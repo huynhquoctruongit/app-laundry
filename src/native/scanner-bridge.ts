@@ -24,6 +24,18 @@ export function getScannerOverride(): ScannerHandler | null {
   return currentHandler;
 }
 
+// Xử lý 1 mã quét theo flow toàn cục (App.tsx: tự hoàn thành đơn / override của màn hình)
+let scanHandler: ScannerHandler | null = null;
+
+export function registerScanHandler(handler: ScannerHandler | null): void {
+  scanHandler = handler;
+}
+
+/** Gọi từ ô nhập khi nhận ra máy quét đã gõ vào ô đó (vd ô tìm kiếm màn Đơn hàng). */
+export function triggerScan(code: string): void {
+  scanHandler?.(code);
+}
+
 export function registerScannerToggle(
   setter: (on: boolean) => void,
   getter: () => boolean,

@@ -20,10 +20,7 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { useFCM } from '@/hooks/useFCM';
 import { navigationRef } from '@/navigation/navigationRef';
 import { PrinterService } from '@/native/printer/PrinterService';
-import {
-  getScannerOverride,
-  registerScannerToggle,
-} from '@/native/scanner-bridge';
+import { getScannerOverride, registerScannerToggle, registerScanHandler } from '@/native/scanner-bridge';
 import { BarcodeOrderModal } from '@/components/common/BarcodeOrderModal';
 import { BarcodeSuccessModal } from '@/components/common/BarcodeSuccessModal';
 import { orderApi } from '@/api/order.api';
@@ -93,6 +90,11 @@ export default function App() {
       })
       .catch(() => {});
   }, []);
+
+  // Ô nhập nào nhận ra máy quét gõ vào (vd ô tìm kiếm) → chuyển mã về flow quét toàn cục
+  useEffect(() => {
+    registerScanHandler((code) => processBarcode(code));
+  });
 
   // Đăng ký toggle/getter để các screen khác (vd audit) có thể bật/tắt scanner
   useEffect(() => {
