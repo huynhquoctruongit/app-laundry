@@ -178,10 +178,14 @@ export function ProductsScreen() {
   }
 
   function confirmDelete(p: Product) {
-    Alert.alert('Xoá dịch vụ', `Bạn có chắc muốn xoá ${p.name}?`, [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xoá', style: 'destructive', onPress: () => deleteMutation.mutate(p.id) },
-    ]);
+    Alert.alert(
+      'Xoá dịch vụ',
+      `Xoá ${p.name}?\nDịch vụ sẽ biến mất khỏi danh sách và không chọn được khi tạo đơn. Các đơn cũ vẫn giữ nguyên.`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Xoá', style: 'destructive', onPress: () => deleteMutation.mutate(p.id) },
+      ],
+    );
   }
 
   function handleSubmit() {
