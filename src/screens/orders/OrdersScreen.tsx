@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -40,6 +40,9 @@ export function OrdersScreen() {
   const { isPhone } = useResponsive();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<OrderStatus | 'ALL' | 'BOOKING'>('ALL');
+  // Lọc theo loại dịch vụ (null = mọi dịch vụ)
+  const [productId, setProductId] = useState<string | null>(null);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
 
   // Lọc theo ngày — mặc định Hôm nay
   const [dateMode, setDateMode] = useState<'today' | 'yesterday' | 'custom'>('today');
@@ -66,10 +69,19 @@ export function OrdersScreen() {
 
   // Lightweight query just for the badge counts
   const countsQuery = useQuery({
-    queryKey: ['orders', 'status-counts', { dateFrom, dateTo }],
-    queryFn: () => orderApi.statusCounts({ dateFrom, dateTo }),
+    queryKey: ['orders', 'status-counts', { dateFrom, dateTo, productId }],
+    queryFn: () => orderApi.statusCounts({ dateFrom, dateTo, productId: productId ?? undefined }),
     staleTime: 30_000,
   });
+
+  // Số đơn từng dịch vụ trong ngày đang xem (nhiều → ít) cho ô "Loại dịch vụ"
+  const productCountsQuery = useQuery({
+    queryKey: ['orders', 'product-counts', { dateFrom, dateTo }],
+    queryFn: () => orderApi.productCounts({ dateFrom, dateTo }),
+    staleTime: 30_000,
+  });
+  const productOptions = productCountsQuery.data ?? [];
+  const selectedProduct = productOptions.find((p) => p.productId === productId);
 
   const counts = countsQuery.data ?? {};
   // "Tất cả" = số đơn tạo trong ngày (BE trả key ALL theo ngày được chọn)
@@ -77,13 +89,14 @@ export function OrdersScreen() {
 
   // Infinite-scroll query for the list
   const ordersQuery = useInfiniteQuery({
-    queryKey: ['orders', { search, status, dateFrom, dateTo }],
+    queryKey: ['orders', { search, status, dateFrom, dateTo, productId }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       orderApi.list({
         search: search || undefined,
         status: status === 'ALL' || status === 'BOOKING' ? undefined : status,
         fromBooking: status === 'BOOKING' ? true : undefined,
+        productId: productId ?? undefined,
         // BE bỏ qua lọc ngày khi đang search (tìm xuyên suốt mọi ngày)
         dateFrom,
         dateTo,
@@ -176,7 +189,48 @@ export function OrdersScreen() {
             {dateMode === 'custom' ? fmtDay(customDate) : 'Chọn ngày'}
           </Text>
         </Pressable>
+        {/* Lọc theo loại dịch vụ — kèm số đơn trong ngày để biết dịch vụ nào dùng nhiều nhất */}
+        <Pressable
+          onPress={() => setProductPickerOpen(true)}
+          style={[styles.dateChip, !!productId && styles.dateChipActive]}
+        >
+          <Icon name="tag-multiple" size={15} color={productId ? '#fff' : colors.textMuted} />
+          <Text style={[styles.dateChipText, !!productId && styles.dateChipTextActive]} numberOfLines={1}>
+            {productId ? selectedProduct?.name ?? 'Dịch vụ đã chọn' : 'Loại dịch vụ'}
+          </Text>
+          <Icon name="chevron-down" size={15} color={productId ? '#fff' : colors.textMuted} />
+        </Pressable>
       </View>
+
+      <Modal visible={productPickerOpen} transparent animationType="fade" onRequestClose={() => setProductPickerOpen(false)}>
+        <Pressable style={styles.pickerBackdrop} onPress={() => setProductPickerOpen(false)}>
+          <Pressable style={styles.pickerCard} onPress={() => {}}>
+            <Text style={styles.pickerTitle}>Loại dịch vụ · {fmtDay(selectedDate)}</Text>
+            <ScrollView style={{ maxHeight: 420 }}>
+              {[{ productId: null as string | null, name: 'Tất cả dịch vụ', orderCount: -1 }, ...productOptions].map((p) => {
+                const active = p.productId === productId;
+                return (
+                  <Pressable
+                    key={p.productId ?? 'all'}
+                    style={[styles.pickerRow, active && styles.pickerRowActive]}
+                    onPress={() => {
+                      setProductId(p.productId);
+                      setProductPickerOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerName, active && { color: colors.primary, fontWeight: '700' }]}>{p.name}</Text>
+                    {p.orderCount >= 0 && <Text style={styles.pickerCount}>{p.orderCount} đơn</Text>}
+                    {active && <Icon name="check" size={18} color={colors.primary} />}
+                  </Pressable>
+                );
+              })}
+              {productOptions.length === 0 && (
+                <Text style={[styles.pickerCount, { padding: spacing.md }]}>Chưa có đơn nào trong ngày.</Text>
+              )}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
       {showDatePicker && (
         <DateTimePicker
           value={dateMode === 'custom' ? customDate : new Date()}
@@ -294,6 +348,13 @@ const styles = StyleSheet.create({
   },
   dateRow: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.md, paddingTop: spacing.md, backgroundColor: colors.card, alignItems: 'center' },
   dateChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 99, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  pickerBackdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  pickerCard: { width: '100%', maxWidth: 420, backgroundColor: colors.card, borderRadius: 14, padding: spacing.md, gap: spacing.sm },
+  pickerTitle: { fontSize: 17, fontWeight: '800', color: colors.text, paddingHorizontal: spacing.sm },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 12, paddingHorizontal: spacing.md, borderRadius: 10 },
+  pickerRowActive: { backgroundColor: colors.primaryLight },
+  pickerName: { flex: 1, fontSize: 15, color: colors.text },
+  pickerCount: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
   dateChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   dateChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
   dateChipTextActive: { color: '#fff' },

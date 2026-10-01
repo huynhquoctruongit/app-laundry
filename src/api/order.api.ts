@@ -5,6 +5,8 @@ export interface OrderListQuery {
   search?: string;
   status?: string;
   customerId?: string;
+  /** Lọc đơn có dùng dịch vụ này */
+  productId?: string;
   assignedToId?: string;
   fromBooking?: boolean;
   debt?: boolean;
@@ -39,12 +41,18 @@ export interface ScanHistoryEntry {
   ip?: string | null;
   userAgent?: string | null;
   note?: string | null;
-  meta?: string | null;
+  /** Backend trả object (vd { amount } cho đơn nợ/thu nợ) */
+  meta?: Record<string, unknown> | string | null;
 }
 
 export const orderApi = {
-  statusCounts: (query: { dateFrom?: string; dateTo?: string } = {}) =>
+  statusCounts: (query: { dateFrom?: string; dateTo?: string; productId?: string } = {}) =>
     unwrap<Record<string, number>>(apiClient.get('/orders/status-counts', { params: query })),
+  /** Số đơn theo từng loại dịch vụ trong ngày, nhiều → ít (lọc dịch vụ) */
+  productCounts: (query: { dateFrom?: string; dateTo?: string } = {}) =>
+    unwrap<{ productId: string; name: string; orderCount: number }[]>(
+      apiClient.get('/orders/product-counts', { params: query }),
+    ),
   list: (query: OrderListQuery = {}) =>
     unwrap<Paginated<Order>>(apiClient.get('/orders', { params: query })),
   detail: (id: string) => unwrap<Order>(apiClient.get(`/orders/${id}`)),

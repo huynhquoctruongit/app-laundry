@@ -84,6 +84,11 @@ export interface Order {
   pickupAt?: string | null;
   deliveredAt?: string | null;
   paidAt?: string | null;
+  /** Người bấm "Đã thanh toán" (thu nợ) */
+  paidBy?: { id: string; name: string } | null;
+  /** Lần bấm "Đơn nợ" gần nhất (giữ lại cả sau khi đã thu nợ) */
+  debtMarkedAt?: string | null;
+  debtMarkedBy?: { id: string; name: string } | null;
   /** Tổng khách đã chuyển khoản cho đơn (khớp tự động theo mã đơn trong nội dung CK) */
   transferredAmount?: number | string;
   /** Đơn nợ = đã giao nhưng chưa thu tiền (treo, chưa vào lợi nhuận) */

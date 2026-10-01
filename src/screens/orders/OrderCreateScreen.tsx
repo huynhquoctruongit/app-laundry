@@ -44,6 +44,9 @@ interface DraftItem {
  *  và hoá đơn in ra hiển thị rõ khoản này. */
 const SHIP_ITEM_NAME = 'Phí giao hàng';
 
+/** Số dịch vụ hiện sẵn ở mục "Chọn dịch vụ" (còn lại nằm trong nút "Thêm") */
+const QUICK_PRODUCT_COUNT = 5;
+
 export function OrderCreateScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -455,7 +458,7 @@ export function OrderCreateScreen() {
             </CardContent>
           </Card>
 
-          {/* Chọn dịch vụ nhanh: tag top-4 (theo ưu tiên) + nút Thêm mở full */}
+          {/* Chọn dịch vụ nhanh: tag top-5 (theo ưu tiên) + nút Thêm mở full */}
           <Card>
             <CardHeader><CardTitle>Chọn dịch vụ</CardTitle></CardHeader>
             <CardContent style={{ gap: spacing.sm }}>
@@ -476,7 +479,7 @@ export function OrderCreateScreen() {
                 </View>
               ) : (
                 <View style={styles.tagWrap}>
-                  {(productsQuery.data?.items ?? []).slice(0, 4).map((p) => {
+                  {(productsQuery.data?.items ?? []).slice(0, QUICK_PRODUCT_COUNT).map((p) => {
                     const added = items.find((it) => it.productId === p.id);
                     return (
                       <Pressable

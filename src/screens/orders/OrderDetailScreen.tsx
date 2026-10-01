@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge';
 import { InvoicePreviewModal } from '@/components/common/InvoicePreviewModal';
-import { orderApi } from '@/api/order.api';
+import { orderApi, type ScanHistoryEntry } from '@/api/order.api';
 import { settingsApi } from '@/api/settings.api';
 import { extractError } from '@/api/client';
 import { playCoinSound } from '@/lib/sound';
@@ -20,6 +20,31 @@ import { calcLineTotal, formatCurrency, formatDateTime } from '@/lib/utils';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 
 type R = RouteProp<RootStackParamList, 'OrderDetail'>;
+
+/** Nhãn 1 dòng lịch sử đơn (scan, đổi trạng thái, đơn nợ, thu nợ) */
+function historyLabel(h: ScanHistoryEntry) {
+  let meta: Record<string, unknown> | null = null;
+  if (h.meta && typeof h.meta === 'object') {
+    meta = h.meta;
+  } else if (typeof h.meta === 'string') {
+    try {
+      meta = JSON.parse(h.meta);
+    } catch {
+      meta = null;
+    }
+  }
+  const amount = typeof meta?.amount === 'number' ? ` ${formatCurrency(meta.amount)}` : '';
+  switch (h.action) {
+    case 'MARK_DEBT':
+      return `💰 Đánh dấu đơn nợ${amount}`;
+    case 'MARK_PAID':
+      return `✅ Đã thanh toán${amount}`;
+    case 'UPDATE_STATUS':
+      return 'Cập nhật trạng thái';
+    default:
+      return 'Xem QR';
+  }
+}
 
 export function OrderDetailScreen() {
   const route = useRoute<R>();
@@ -235,6 +260,26 @@ export function OrderDetailScreen() {
         <Card>
           <CardHeader><CardTitle>Thanh toán</CardTitle></CardHeader>
           <CardContent style={{ gap: spacing.md }}>
+            {/* Đơn nợ: thời điểm + người bấm "Đơn nợ" / "Đã thanh toán" */}
+            {order.debtMarkedAt ? (
+              <View style={{ gap: 4 }}>
+                <Text style={styles.payLog}>
+                  💰 Đánh dấu nợ: <Text style={styles.payLogStrong}>{formatDateTime(order.debtMarkedAt)}</Text>
+                  {order.debtMarkedBy ? ` · ${order.debtMarkedBy.name}` : ''}
+                </Text>
+                <Text style={styles.payLog}>
+                  ✅ Đã thanh toán:{' '}
+                  {order.paidAt ? (
+                    <>
+                      <Text style={[styles.payLogStrong, { color: colors.success }]}>{formatDateTime(order.paidAt)}</Text>
+                      {order.paidBy ? ` · ${order.paidBy.name}` : ''}
+                    </>
+                  ) : (
+                    <Text style={[styles.payLogStrong, { color: colors.danger }]}>chưa thanh toán</Text>
+                  )}
+                </Text>
+              </View>
+            ) : null}
             {order.isDebt ? (
               <>
                 <View style={styles.debtBanner}>
@@ -331,9 +376,9 @@ export function OrderDetailScreen() {
         settings={settingsQuery.data ?? null}
       />
 
-      {/* Scan history */}
+      {/* Lịch sử đơn: scan, đổi trạng thái, đơn nợ, thu nợ */}
       <Card>
-        <CardHeader><CardTitle>Lịch sử scan</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Lịch sử đơn</CardTitle></CardHeader>
         <CardContent style={{ gap: spacing.sm }}>
           {(historyQuery.data ?? []).length === 0 ? (
             <Text style={{ color: colors.textMuted }}>Chưa có lượt scan nào.</Text>
@@ -342,7 +387,7 @@ export function OrderDetailScreen() {
               <View key={h.id} style={styles.historyRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '600' }}>
-                    {h.action === 'UPDATE_STATUS' ? 'Cập nhật trạng thái' : 'Xem QR'}
+                    {historyLabel(h)}
                     {h.user ? ` · ${h.user.name}` : ' · Khách'}
                   </Text>
                   <Text style={{ fontSize: 12, color: colors.textMuted }}>{h.ip ?? '-'}</Text>
@@ -479,5 +524,7 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
   totalValue: { fontSize: 18, fontWeight: '700', color: colors.text },
+  payLog: { fontSize: 14, color: colors.textMuted },
+  payLogStrong: { fontWeight: '700', color: colors.text },
   historyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
 });
