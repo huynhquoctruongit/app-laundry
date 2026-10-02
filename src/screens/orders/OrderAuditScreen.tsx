@@ -1,22 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   FlatList,
+  Modal,
+  ScrollView,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from '@/components/ui/Button';
 import { CameraScanModal, type ScanFeedback } from '@/components/common/CameraScanModal';
 import { orderApi } from '@/api/order.api';
+import { auditApi } from '@/api/audit.api';
 import { extractError } from '@/api/client';
 import { useResponsive } from '@/hooks/useResponsive';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   setScannerOverride,
   setScannerActive,
@@ -33,10 +38,23 @@ interface AuditEntry {
   order: Order;
   state: BagState;
   scannedAt?: number;
+  /** Ai quét (từ máy chủ — có thể là máy khác) */
+  auditedBy?: string;
+  auditedAt?: string;
 }
+
+/** Đồng bộ kết quả quét giữa các máy mỗi … ms khi đang mở màn Rà soát */
+const SYNC_INTERVAL_MS = 3000;
+
+const hhmm = (iso: string) => {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 export function OrderAuditScreen() {
   const queryClient = useQueryClient();
+  const isFocused = useIsFocused();
+  const { isAdmin } = usePermissions();
   const { isPhone, width } = useResponsive();
   // Phone: 2 cols, tablet/POS: 4 cols (Sunmi rộng đủ cho 4)
   const numColumns = isPhone ? 2 : width >= 1200 ? 5 : width >= 900 ? 4 : 3;
@@ -50,36 +68,82 @@ export function OrderAuditScreen() {
     },
   });
 
-  const [auditMap, setAuditMap] = useState<Map<string, AuditEntry>>(new Map());
+  // Kết quả quét HÔM NAY của mọi máy (điện thoại + máy quét không dây) — gọi lại liên tục
+  const auditsQuery = useQuery({
+    queryKey: ['audits', 'today'],
+    queryFn: () => auditApi.today(),
+    refetchInterval: isFocused ? SYNC_INTERVAL_MS : false,
+  });
+
+  // Quét trên máy này nhưng chưa thấy trên máy chủ (đang gửi) → hiện ngay cho mượt
+  const [optimistic, setOptimistic] = useState<Map<string, BagState>>(new Map());
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  /** Máy chủ là nguồn chuẩn; optimistic chỉ lấp khoảng trễ của lần quét trên máy này. */
+  const auditMap = useMemo(() => {
+    const map = new Map<string, AuditEntry>();
+    const server = new Map((auditsQuery.data?.items ?? []).map((a) => [a.order.code, a]));
+    for (const o of readyQuery.data?.items ?? []) {
+      const a = server.get(o.code);
+      const local = optimistic.get(o.code);
+      map.set(o.code, {
+        order: o,
+        state: a ? (a.result === 'ANOMALY' ? 'anomaly' : 'verified') : local ?? 'pending',
+        auditedBy: a?.auditedBy.name,
+        auditedAt: a?.auditedAt,
+      });
+    }
+    // Bất thường: đơn đã giao nhưng bịch vẫn trên kệ (không nằm trong danh sách chờ giao)
+    for (const a of auditsQuery.data?.items ?? []) {
+      if (a.result === 'ANOMALY' && !map.has(a.order.code)) {
+        map.set(a.order.code, {
+          order: a.order as unknown as Order,
+          state: 'anomaly',
+          auditedBy: a.auditedBy.name,
+          auditedAt: a.auditedAt,
+        });
+      }
+    }
+    return map;
+  }, [readyQuery.data, auditsQuery.data, optimistic]);
+
+  // Máy chủ đã xác nhận (hoặc đã bị máy khác "Bắt đầu lại") → bỏ bản tạm trên máy này
+  useEffect(() => {
+    if (!auditsQuery.data) return;
+    setOptimistic((prev) => {
+      if (prev.size === 0) return prev;
+      const serverCodes = new Set(auditsQuery.data.items.map((a) => a.order.code));
+      const next = new Map([...prev].filter(([code]) => !serverCodes.has(code)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [auditsQuery.data]);
+
   // Ref để handleScan đọc map mới nhất (tránh stale closure do useCallback [])
   const auditMapRef = useRef(auditMap);
   useEffect(() => { auditMapRef.current = auditMap; }, [auditMap]);
 
-  // Khởi tạo map khi data về
-  useEffect(() => {
-    if (!readyQuery.data) return;
-    setAuditMap((prev) => {
-      const next = new Map<string, AuditEntry>();
-      for (const o of readyQuery.data.items) {
-        // Giữ lại state cũ nếu đã scan
-        const existing = prev.get(o.code);
-        next.set(o.code, {
-          order: o,
-          state: existing?.state ?? 'pending',
-          scannedAt: existing?.scannedAt,
-        });
-      }
-      // Giữ lại các "anomaly" (đơn đã giao bị quét nhầm lên kệ)
-      for (const [code, entry] of prev) {
-        if (entry.state === 'anomaly' && !next.has(code)) {
-          next.set(code, entry);
+  /** Gửi kết quả quét lên máy chủ; bịch đã được máy khác quét → báo người quét trước */
+  const pushAudit = useCallback(
+    async (order: Pick<Order, 'id' | 'code'>, result: 'VERIFIED' | 'ANOMALY') => {
+      try {
+        const res = await auditApi.mark(order.id, result);
+        if (res.duplicate) {
+          Toast.show({
+            type: 'info',
+            text1: `${res.audit.auditedBy.name} đã quét bịch này lúc ${hhmm(res.audit.auditedAt)}`,
+            text2: res.audit.order.customer?.name ?? res.audit.order.code,
+          });
         }
+      } catch (err) {
+        Toast.show({ type: 'error', text1: 'Chưa lưu được lần quét', text2: extractError(err).message });
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ['audits', 'today'] });
       }
-      return next;
-    });
-  }, [readyQuery.data]);
+    },
+    [queryClient],
+  );
 
   // Handler xử lý 1 scan — KHÔNG hoàn thành đơn, chỉ check
   const handleScan = useCallback(
@@ -104,15 +168,16 @@ export function OrderAuditScreen() {
         const name = ent?.order.customer?.name ?? key;
         setLastScanned(key);
         if (ent?.state === 'anomaly') return { status: 'anomaly', label: name };
-        const already = ent?.state === 'verified';
-        setAuditMap((prev) => {
-          const e = prev.get(key);
-          if (!e || e.state === 'anomaly') return prev;
-          const next = new Map(prev);
-          next.set(key, { ...e, state: 'verified', scannedAt: Date.now() });
-          return next;
-        });
-        return { status: already ? 'duplicate' : 'verified', label: name };
+        if (ent?.state === 'verified') {
+          // Đã quét rồi (có thể bởi máy khác) → báo, không ghi lại
+          return {
+            status: 'duplicate',
+            label: ent.auditedBy ? `${name} · ${ent.auditedBy} đã quét ${ent.auditedAt ? hhmm(ent.auditedAt) : ''}` : name,
+          };
+        }
+        setOptimistic((prev) => new Map(prev).set(key, 'verified'));
+        if (ent) void pushAudit(ent.order, 'VERIFIED');
+        return { status: 'verified', label: name };
       }
 
       setLastScanned(code);
@@ -126,13 +191,9 @@ export function OrderAuditScreen() {
         }
         const fname = found.customer?.name ?? found.code;
         if (found.status === 'DELIVERED') {
-          // Anomaly: hệ thống đã ghi giao nhưng đồ vẫn ở kệ
-          setAuditMap((prev) => {
-            const next = new Map(prev);
-            next.set(found.code, { order: found, state: 'anomaly', scannedAt: Date.now() });
-            return next;
-          });
+          // Anomaly: hệ thống đã ghi giao nhưng đồ vẫn ở kệ → ghi lên máy chủ cho mọi máy thấy
           setLastScanned(found.code);
+          void pushAudit(found, 'ANOMALY');
           Toast.show({ type: 'info', text1: 'Bất thường: đơn đã giao nhưng còn trên kệ', text2: found.code });
           return { status: 'anomaly', label: `Bất thường: ${fname}` };
         }
@@ -160,8 +221,7 @@ export function OrderAuditScreen() {
         return { status: 'notfound', label: code };
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [pushAudit],
   );
 
   // Khi vào màn — đăng ký override scanner + bật scanner nếu đang tắt
@@ -218,16 +278,28 @@ export function OrderAuditScreen() {
   }, [entries]);
 
   function resetAudit() {
-    setAuditMap((prev) => {
-      const next = new Map<string, AuditEntry>();
-      for (const [code, entry] of prev) {
-        if (entry.state === 'anomaly') continue; // bỏ anomaly khi reset
-        next.set(code, { ...entry, state: 'pending', scannedAt: undefined });
-      }
-      return next;
-    });
-    setLastScanned(null);
-    Toast.show({ type: 'info', text1: 'Đã reset rà soát' });
+    Alert.alert(
+      'Bắt đầu rà soát lại?',
+      'Xoá kết quả quét hôm nay trên TẤT CẢ các máy (điện thoại + máy quét).',
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Bắt đầu lại',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await auditApi.resetToday();
+              setOptimistic(new Map());
+              setLastScanned(null);
+              queryClient.invalidateQueries({ queryKey: ['audits', 'today'] });
+              Toast.show({ type: 'info', text1: 'Đã reset rà soát (mọi máy)' });
+            } catch (err) {
+              Toast.show({ type: 'error', text1: extractError(err).message });
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -240,9 +312,15 @@ export function OrderAuditScreen() {
             Quét lần lượt từng bịch trên kệ. KHÔNG hoàn thành đơn — chỉ kiểm tra.
           </Text>
         </View>
+        {isAdmin && (
+          <Pressable onPress={() => setHistoryOpen(true)} style={styles.iconBtn} accessibilityLabel="Lịch sử rà soát">
+            <Icon name="history" size={20} color={colors.textMuted} />
+          </Pressable>
+        )}
         <Pressable
           onPress={() => {
             queryClient.invalidateQueries({ queryKey: ['orders', 'audit-pending'] });
+            queryClient.invalidateQueries({ queryKey: ['audits', 'today'] });
           }}
           style={styles.iconBtn}
         >
@@ -339,6 +417,8 @@ export function OrderAuditScreen() {
         </View>
       </View>
 
+      <AuditHistoryModal visible={historyOpen} onClose={() => setHistoryOpen(false)} />
+
       {/* Camera quét hàng loạt — dùng cho điện thoại quét bịch ở xa */}
       <CameraScanModal
         visible={cameraOpen}
@@ -426,6 +506,12 @@ function BagCard({ entry, pulse }: { entry: AuditEntry; pulse: boolean }) {
       <Text style={[styles.bagAmount, { color: stateStyle.icon }]}>
         {formatCurrency(Number(order.totalAmount))}
       </Text>
+      {entry.auditedBy ? (
+        <Text style={styles.bagBy} numberOfLines={1}>
+          {entry.auditedBy}
+          {entry.auditedAt ? ` · ${hhmm(entry.auditedAt)}` : ''}
+        </Text>
+      ) : null}
       {state === 'verified' && (
         <View style={[styles.badge, { backgroundColor: colors.success }]}>
           <Icon name="check" size={12} color="#fff" />
@@ -437,6 +523,63 @@ function BagCard({ entry, pulse }: { entry: AuditEntry; pulse: boolean }) {
         </View>
       )}
     </Animated.View>
+  );
+}
+
+// ─── Lịch sử rà soát (chủ tiệm) ─────────────────────────────────────────────
+
+function AuditHistoryModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [cursor, setCursor] = useState(() => new Date());
+  const month = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+  const query = useQuery({
+    queryKey: ['audits', 'summary', month],
+    queryFn: () => auditApi.summary(month),
+    enabled: visible,
+  });
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.histBackdrop}>
+        <View style={styles.histCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={styles.title}>Lịch sử rà soát</Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Icon name="close" size={24} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md }}>
+            <Pressable hitSlop={8} onPress={() => setCursor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
+              <Icon name="chevron-left" size={26} color={colors.text} />
+            </Pressable>
+            <Text style={{ fontWeight: '700', color: colors.text }}>Tháng {month.slice(5)}/{month.slice(0, 4)}</Text>
+            <Pressable hitSlop={8} onPress={() => setCursor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
+              <Icon name="chevron-right" size={26} color={colors.text} />
+            </Pressable>
+          </View>
+          <ScrollView style={{ maxHeight: 460 }} contentContainerStyle={{ gap: spacing.sm }}>
+            {query.isLoading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : !query.data || query.data.days.length === 0 ? (
+              <Text style={styles.subtitle}>Chưa có ngày nào rà soát trong tháng.</Text>
+            ) : (
+              query.data.days.map((d) => (
+                <View key={d.date} style={styles.histRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '700', color: colors.text }}>
+                      {d.date.split('-').reverse().slice(0, 2).join('/')} · {hhmm(d.firstAt)}–{hhmm(d.lastAt)}
+                    </Text>
+                    <Text style={styles.subtitle}>{d.users.map((u) => `${u.name} ${u.count}`).join(' · ')}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontWeight: '800', color: colors.success }}>{d.verified} bịch</Text>
+                    {d.anomaly > 0 && <Text style={{ fontWeight: '700', color: colors.danger }}>{d.anomaly} bất thường</Text>}
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -470,6 +613,13 @@ function StatCard({
 }
 
 const styles = StyleSheet.create({
+  bagBy: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  histBackdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  histCard: { width: '100%', maxWidth: 480, backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
+  histRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+  },
   container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
