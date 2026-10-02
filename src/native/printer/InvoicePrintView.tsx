@@ -25,7 +25,7 @@ function money(v: number) {
   return v.toLocaleString('vi-VN') + 'đ';
 }
 function vietQrUrl(settings: ShopSettings, amount: number, addInfo: string): string {
-  const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.bankAccountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}`;
+  const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.bankAccountNumber}-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}`;
   return settings.bankAccountName ? `${url}&accountName=${encodeURIComponent(settings.bankAccountName)}` : url;
 }
 interface Props {
@@ -197,7 +197,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
             <View style={{ alignItems: 'center', marginVertical: 6 }}>
               <Image
                 source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
-                style={{ width: 230, height: 230 }}
+                style={{ width: 280, height: 280 }}
                 onLoadEnd={onQrLoadEnd}
               />
             </View>
