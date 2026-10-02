@@ -17,6 +17,8 @@ import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '@/api/order.api';
 import { bookingApi } from '@/api/booking.api';
 import { SubscriptionBanner } from '@/components/common/SubscriptionBanner';
+import { requestUpdateCheck } from '@/components/common/AppUpdater';
+import { formatVersion, updater, updaterAvailable } from '@/lib/appUpdater';
 
 import { DashboardScreen } from '@/screens/dashboard/DashboardScreen';
 import { OrdersScreen } from '@/screens/orders/OrdersScreen';
@@ -76,6 +78,13 @@ const SCREENS = NAV_ITEMS.map((item) => ({ ...item, component: withSubscriptionB
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { user, logout } = useAuth();
+  const { data: versionInfo } = useQuery({
+    queryKey: ['app-version'],
+    queryFn: () => updater.getInfo(),
+    enabled: updaterAvailable,
+    staleTime: Infinity,
+  });
+  const versionText = formatVersion(versionInfo ?? null);
 
   return (
     <View style={{ flex: 1 }}>
@@ -114,6 +123,17 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           inactiveTintColor={colors.textMuted}
         />
       </DrawerContentScrollView>
+
+      {/* Phiên bản app + kiểm tra cập nhật */}
+      {updaterAvailable && (
+        <Pressable style={styles.version} onPress={requestUpdateCheck}>
+          <Icon name="update" size={18} color={colors.textMuted} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.versionTitle}>Kiểm tra cập nhật</Text>
+            {versionText ? <Text style={styles.versionText}>{versionText}</Text> : null}
+          </View>
+        </Pressable>
+      )}
 
       {/* Logout — cố định ở đáy, không bị scroll che */}
       <Pressable style={styles.logout} onPress={logout}>
@@ -233,6 +253,12 @@ const styles = StyleSheet.create({
     padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border,
   },
   logoutText: { color: colors.danger, fontWeight: '600' },
+  version: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  versionTitle: { color: colors.text, fontSize: 14, fontWeight: '500' },
+  versionText: { color: colors.textSubtle, fontSize: 12, marginTop: 1 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: -16 },
   labelText: { fontSize: 15, fontWeight: '500' },
   badge: {

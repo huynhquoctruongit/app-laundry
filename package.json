@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "postinstall": "patch-package || true"
+    "postinstall": "patch-package || true",
+    "release:ota": "node scripts/release.js ota",
+    "release:apk": "node scripts/release.js apk"
   },
   "dependencies": {
     "@mitsuharu/react-native-sunmi-printer-library": "^2.4.0",

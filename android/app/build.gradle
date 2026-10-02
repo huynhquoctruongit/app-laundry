@@ -70,6 +70,14 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+// Phiên bản app đọc từ version.json (scripts/release.js tự tăng khi phát hành)
+def appVersion = new groovy.json.JsonSlurper().parse(rootProject.file('../version.json'))
+
+// Khoá ký release: android/keystore.properties + android/app/release.keystore (không commit)
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+if (keystorePropsFile.exists()) keystoreProps.load(new FileInputStream(keystorePropsFile))
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -80,8 +88,10 @@ android {
         applicationId "vn.laundry.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersion.versionCode
+        versionName appVersion.versionName
+        // Số thứ tự gói JS có sẵn trong APK — bản OTA chỉ áp dụng khi lớn hơn
+        buildConfigField "int", "BUNDLE_VERSION", "${appVersion.bundleVersion}"
     }
     signingConfigs {
         debug {
@@ -90,15 +100,22 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (keystorePropsFile.exists()) {
+            release {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Ký bằng khoá release riêng — mọi bản APK phải cùng khoá thì mới cài đè / tự cập nhật được
+            signingConfig keystorePropsFile.exists() ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

@@ -10,6 +10,8 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.soloader.SoLoader
+import com.laundrypos.updater.AppUpdaterPackage
+import com.laundrypos.updater.OtaBundle
 import com.laundrypos.usbprinter.RNUsbPrinterPackage
 import com.laundrypos.wifiprinter.RNWifiPrinterPackage
 
@@ -23,7 +25,12 @@ class MainApplication : Application(), ReactApplication {
               // add(MyReactNativePackage())
               add(RNUsbPrinterPackage())
               add(RNWifiPrinterPackage())
+              add(AppUpdaterPackage())
             }
+
+        // Bản OTA đã tải (nếu có) thay cho bundle gốc trong APK — xem updater/OtaBundle.kt
+        override fun getJSBundleFile(): String? =
+            if (BuildConfig.DEBUG) super.getJSBundleFile() else OtaBundle.resolve(this@MainApplication)
 
         override fun getJSMainModuleName(): String = "index"
 

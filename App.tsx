@@ -23,6 +23,7 @@ import { PrinterService } from '@/native/printer/PrinterService';
 import { getScannerOverride, registerScannerToggle, registerScanHandler } from '@/native/scanner-bridge';
 import { BarcodeOrderModal } from '@/components/common/BarcodeOrderModal';
 import { BarcodeSuccessModal } from '@/components/common/BarcodeSuccessModal';
+import { AppUpdater } from '@/components/common/AppUpdater';
 import { orderApi } from '@/api/order.api';
 import { extractError } from '@/api/client';
 import { matchScannedOrder } from '@/lib/utils';
@@ -337,6 +338,7 @@ export default function App() {
               autoCloseMs={3000}
             />
 
+            <AppUpdater />
             <Toast />
           </AuthProvider>
         </QueryClientProvider>

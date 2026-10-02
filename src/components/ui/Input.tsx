@@ -10,6 +10,8 @@ export interface InputProps extends TextInputProps {
   hint?: string;
   required?: boolean;
   containerStyle?: ViewStyle;
+  /** Style cho khung viền ô nhập (vd viền xanh nổi bật) */
+  wrapperStyle?: ViewStyle;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   /** false = không tự nhận mã từ máy quét gõ vào ô này (mặc định: có) */
@@ -61,7 +63,7 @@ function useScanCapture(onChangeText: ((t: string) => void) | undefined, enabled
 }
 
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, hint, required, containerStyle, leftIcon, rightIcon, style, scanCapture = true, ...rest },
+  { label, error, hint, required, containerStyle, wrapperStyle, leftIcon, rightIcon, style, scanCapture = true, ...rest },
   ref,
 ) {
   const onChangeText = useScanCapture(rest.onChangeText, scanCapture && !rest.multiline);
@@ -79,6 +81,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           {
             borderColor: error ? colors.danger : colors.border,
           },
+          wrapperStyle,
+          error ? { borderColor: colors.danger } : null,
         ]}
       >
         {leftIcon && <View style={styles.icon}>{leftIcon}</View>}

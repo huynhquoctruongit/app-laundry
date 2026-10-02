@@ -27,7 +27,7 @@ import { extractError } from '@/api/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { EmptyState } from '@/components/common/EmptyState';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { radius, spacing, touch } from '@/theme/spacing';
 import { calcLineTotal, formatCurrency, formatDateTime, getEffectivePrice } from '@/lib/utils';
 import type { Customer, Product } from '@/types/api';
 
@@ -292,29 +292,6 @@ export function OrderCreateScreen() {
     setItems((arr) => arr.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
 
-  /** Cho phép xoá tự do khi đang nhập — KHÔNG force min=1 ở đây */
-  function onQuantityInput(i: number, value: string) {
-    // Chỉ giữ ký tự số nguyên dương
-    const cleaned = value.replace(/[^0-9]/g, '');
-    const it = items[i];
-    // Tính giá theo qty hiện tại (nếu rỗng → dùng 1 để tính giá)
-    const qty = Math.max(1, parseInt(cleaned, 10) || 1);
-    const product = productsQuery.data?.items.find((p) => p.id === it?.productId);
-    const newPrice = product?.wholesaleEnabled
-      ? String(getEffectivePrice(product, qty))
-      : it?.unitPrice;
-    // Lưu cleaned (có thể là "") để input không bị snap back
-    updateItem(i, { quantity: cleaned, unitPrice: newPrice });
-  }
-
-  /** Khi rời ô số lượng: nếu trống hoặc = 0 → reset về "1" */
-  function onQuantityBlur(i: number) {
-    const q = parseInt(items[i]?.quantity ?? '', 10);
-    if (!q || q < 1) {
-      updateItem(i, { quantity: '1' });
-    }
-  }
-
   /** Thêm dịch vụ vào đơn — đã có thì +1 số lượng (tap nhanh kiểu POS) */
   function addProduct(p: Product) {
     setItems((arr) => {
@@ -540,6 +517,8 @@ export function OrderCreateScreen() {
                       </Pressable>
                     </View>
 
+                    {/* SL chỉ bấm +/− (không gõ được) và thu gọn — tránh nhầm gõ cân vào SL làm nhân đôi tiền.
+                        Ô Cân (kg) viền xanh để nhân viên chú ý nhập đúng chỗ. */}
                     <View
                       style={{
                         flexDirection: isPhone ? 'column' : 'row',
@@ -547,42 +526,39 @@ export function OrderCreateScreen() {
                         alignItems: isPhone ? 'stretch' : 'flex-start',
                       }}
                     >
-                      <View style={{ flex: isPhone ? undefined : 1.3 }}>
-                        <Text style={styles.fieldLabel}>SL</Text>
-                        <View style={styles.stepperRow}>
-                          <Pressable
-                            onPress={() => adjustQuantity(i, -1)}
-                            style={styles.stepBtn}
-                            hitSlop={6}
-                          >
-                            <Icon name="minus" size={20} color={colors.text} />
-                          </Pressable>
-                          <View style={styles.stepInputWrap}>
-                            <Input
-                              value={it.quantity}
-                              onChangeText={(v) => onQuantityInput(i, v)}
-                              onBlur={() => onQuantityBlur(i)}
-                              keyboardType="number-pad"
-                              style={styles.stepInputText}
-                            />
+                      <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', flex: isPhone ? undefined : 1.6 }}>
+                        <View>
+                          <Text style={styles.fieldLabel}>SL</Text>
+                          <View style={styles.stepper}>
+                            <Pressable
+                              onPress={() => adjustQuantity(i, -1)}
+                              style={styles.stepBtn}
+                              hitSlop={4}
+                              disabled={Number(it.quantity) <= 1}
+                            >
+                              <Icon
+                                name="minus"
+                                size={18}
+                                color={Number(it.quantity) <= 1 ? colors.textSubtle : colors.text}
+                              />
+                            </Pressable>
+                            <Text style={styles.stepValue}>{it.quantity || '1'}</Text>
+                            <Pressable onPress={() => adjustQuantity(i, 1)} style={styles.stepBtn} hitSlop={4}>
+                              <Icon name="plus" size={18} color={colors.text} />
+                            </Pressable>
                           </View>
-                          <Pressable
-                            onPress={() => adjustQuantity(i, 1)}
-                            style={styles.stepBtn}
-                            hitSlop={6}
-                          >
-                            <Icon name="plus" size={20} color={colors.text} />
-                          </Pressable>
                         </View>
-                      </View>
-                      <View style={{ flex: isPhone ? undefined : 1 }}>
-                        <Input
-                          label="Cân (kg)"
-                          value={it.weight}
-                          onChangeText={(v) => updateItem(i, { weight: v.replace(',', '.') })}
-                          keyboardType="decimal-pad"
-                          placeholder="—"
-                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.fieldLabel, { color: colors.primary }]}>Cân (kg)</Text>
+                          <Input
+                            value={it.weight}
+                            onChangeText={(v) => updateItem(i, { weight: v.replace(',', '.') })}
+                            keyboardType="decimal-pad"
+                            placeholder="Nhập kg"
+                            wrapperStyle={styles.weightInput}
+                            style={{ fontWeight: '700' }}
+                          />
+                        </View>
                       </View>
                       <View style={{ flex: isPhone ? undefined : 1.6 }}>
                         <Input
@@ -994,25 +970,32 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: spacing.xs },
-  stepperRow: {
+  stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    height: touch.inputHeight,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
   stepBtn: {
-    width: 40, height: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.background,
-    borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepInputWrap: {
-    flex: 1,
-  },
-  stepInputText: {
+  stepValue: {
+    minWidth: 26,
     textAlign: 'center',
     fontWeight: '700',
     fontSize: 16,
+    color: colors.text,
+  },
+  weightInput: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight + '66',
   },
   dateBtn: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,

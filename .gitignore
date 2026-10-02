@@ -36,3 +36,9 @@ ios/*.xcworkspace/xcuserdata/
 # IDE
 .vscode/
 .idea/
+
+# Khoá ký APK release — KHÔNG commit (repo public). Sao lưu riêng!
+android/app/release.keystore
+android/keystore.properties
+# Bản build phát hành (scripts/release.js)
+release-out/
