@@ -197,7 +197,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
             <View style={{ alignItems: 'center', marginVertical: 6 }}>
               <Image
                 source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
-                style={{ width: 280, height: 280 }}
+                style={{ width: 230, height: 230 }}
                 onLoadEnd={onQrLoadEnd}
               />
             </View>
