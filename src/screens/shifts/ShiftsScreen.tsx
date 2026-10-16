@@ -24,7 +24,7 @@ export function ShiftsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.tabs}>
-        <TabButton label="Chấm công theo tháng" active={tab === 'timesheet'} onPress={() => setTab('timesheet')} />
+        <TabButton label="Lương theo tuần" active={tab === 'timesheet'} onPress={() => setTab('timesheet')} />
         <TabButton label="Ca cửa hàng" active={tab === 'store'} onPress={() => setTab('store')} />
       </View>
       {tab === 'timesheet' ? <TimesheetMonthly /> : <StoreShifts />}

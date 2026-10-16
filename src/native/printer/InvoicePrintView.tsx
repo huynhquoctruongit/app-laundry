@@ -6,14 +6,15 @@
  *  2. Dùng react-native-view-shot capture thành base64 PNG
  *  3. Gửi base64 tới SunmiPrinterLibrary.printImage()
  */
-import React, { useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Barcode128 } from '@/components/common/Barcode128';
 import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal, orderCodeSuffix, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
+import { buildVietQrPayload } from '@/lib/vietqr';
 
 // Giấy 58mm → 384px. Giấy 80mm → 576px. Scale để font đủ lớn khi in.
 export const PRINT_WIDTH_PX = 384;
@@ -24,14 +25,19 @@ function pad2(n: number) {
 function money(v: number) {
   return v.toLocaleString('vi-VN') + 'đ';
 }
-function vietQrUrl(settings: ShopSettings, amount: number, addInfo: string): string {
-  const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.bankAccountNumber}-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}`;
-  return settings.bankAccountName ? `${url}&accountName=${encodeURIComponent(settings.bankAccountName)}` : url;
+/** Nội dung mã VietQR chuyển khoản — tạo ngay trên máy (không tải ảnh qua mạng → không bị in QR trắng). */
+function vietQrValue(settings: ShopSettings, amount: number, addInfo: string): string {
+  return buildVietQrPayload({
+    bankBin: settings.bankBin!,
+    accountNumber: settings.bankAccountNumber!,
+    amount,
+    addInfo,
+  });
 }
 interface Props {
   order: Order;
   settings: ShopSettings;
-  /** Gọi khi ảnh QR chuyển khoản tải xong (thành công hoặc lỗi) — dùng để biết lúc nào chụp ảnh in là an toàn. */
+  /** Gọi khi mã QR sẵn sàng (QR vẽ ngay trên máy nên gọi ngay khi hiển thị) — biết lúc nào chụp ảnh in là an toàn. */
   onQrLoadEnd?: () => void;
 }
 
@@ -45,6 +51,11 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
   const dateStr = `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
   const total = subtotal;
+
+  // QR vẽ ngay trên máy (không tải ảnh) → báo sẵn sàng in luôn
+  useEffect(() => {
+    onQrLoadEnd?.();
+  }, [onQrLoadEnd]);
 
   // Cỡ chữ lấy từ cài đặt (clamp về khoảng hợp lý cho ảnh in)
   const baseFont = clamp(settings.invoiceFontSize ?? 15, 12, 26);
@@ -180,11 +191,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
       {showBothQr ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 6 }}>
           <View style={s.qrBox}>
-            <Image
-              source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
-              style={{ width: 150, height: 150 }}
-              onLoadEnd={onQrLoadEnd}
-            />
+            <QRCode value={vietQrValue(settings, grandTotal, order.code)} size={150} quietZone={4} />
           </View>
           <View style={s.qrBox}>
             <Text style={s.qrBoxLabel}>Đặt lịch giao nhận</Text>
@@ -195,11 +202,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
         <>
           {hasBankQr && (
             <View style={{ alignItems: 'center', marginVertical: 6 }}>
-              <Image
-                source={{ uri: vietQrUrl(settings, grandTotal, order.code) }}
-                style={{ width: 230, height: 230 }}
-                onLoadEnd={onQrLoadEnd}
-              />
+              <QRCode value={vietQrValue(settings, grandTotal, order.code)} size={230} quietZone={6} />
             </View>
           )}
           {hasBookingQr && (

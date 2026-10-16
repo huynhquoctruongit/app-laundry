@@ -27,12 +27,28 @@ export interface TimesheetUser {
   entries: TimesheetEntry[];
 }
 
-export interface MonthlyTimesheet {
-  month: string;
-  rates: { weekday: number; sunday: number };
+export interface TimesheetWeek {
+  /** Thứ 2 "YYYY-MM-DD" */
+  start: string;
+  /** Chủ nhật "YYYY-MM-DD" (ngày trả lương) */
+  end: string;
   totalHours: number;
   totalAmount: number;
   users: TimesheetUser[];
+}
+
+export interface MonthlyTimesheet {
+  month: string;
+  /** Thứ 2 tuần đầu → CN tuần cuối của tháng lương */
+  from: string;
+  to: string;
+  rates: { weekday: number; sunday: number };
+  totalHours: number;
+  totalAmount: number;
+  /** Tổng cả tháng theo nhân viên */
+  users: TimesheetUser[];
+  /** Từng tuần lương, mới nhất trước */
+  weeks: TimesheetWeek[];
 }
 
 export const timesheetApi = {
