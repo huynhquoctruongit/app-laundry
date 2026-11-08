@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { settingsApi } from '@/api/settings.api';
 import { extractError, setApiBaseUrl, getApiBaseUrl } from '@/api/client';
 import { PrinterService } from '@/native/printer/PrinterService';
@@ -17,8 +18,29 @@ import { Modal, FlatList, ActivityIndicator } from 'react-native';
 import { colors } from '@/theme/colors';
 import { radius, spacing, touch } from '@/theme/spacing';
 import type { ShopSettings } from '@/types/api';
+import { vnDateStr } from '@/lib/promo';
 
 type SettingsTab = 'shop' | 'invoice' | 'features' | 'api';
+
+type PromoType = 'PERCENT' | 'AMOUNT';
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Gõ số → tự chèn "-" thành YYYY-MM-DD (20261108 → 2026-11-08) */
+function formatYmdInput(t: string) {
+  const d = t.replace(/\D/g, '').slice(0, 8);
+  if (d.length > 6) return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`;
+  if (d.length > 4) return `${d.slice(0, 4)}-${d.slice(4)}`;
+  return d;
+}
+
+/** Trạng thái đợt giảm giá theo giá trị đang nhập trong form (so ngày giờ VN) */
+function promoStatus(enabled: boolean, value: number, start: string, end: string) {
+  if (!enabled || !(value > 0)) return { label: 'Đang tắt', bg: colors.background, fg: colors.textMuted };
+  const today = vnDateStr();
+  if (YMD_RE.test(start) && today < start) return { label: 'Chưa tới ngày', bg: colors.warningLight, fg: colors.warning };
+  if (YMD_RE.test(end) && today > end) return { label: 'Đã hết hạn', bg: colors.dangerLight, fg: colors.danger };
+  return { label: 'Đang áp dụng', bg: colors.successLight, fg: colors.success };
+}
 
 export function SettingsScreen() {
   const queryClient = useQueryClient();
@@ -50,6 +72,14 @@ export function SettingsScreen() {
   const [invoiceShowDebt, setInvoiceShowDebt] = useState(false);
   const [openingHours, setOpeningHours] = useState('');
   const [smallOrderNote, setSmallOrderNote] = useState('');
+  const [invoiceSubtitle, setInvoiceSubtitle] = useState('');
+  // Giảm giá toàn bộ dịch vụ (khai trương…)
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoType, setPromoType] = useState<PromoType>('PERCENT');
+  const [promoValue, setPromoValue] = useState('');
+  const [promoStartDate, setPromoStartDate] = useState('');
+  const [promoEndDate, setPromoEndDate] = useState('');
+  const [promoLabel, setPromoLabel] = useState('');
   const [openingCash, setOpeningCash] = useState('750000');
   const [defaultExpenses, setDefaultExpenses] = useState('25000');
   const [closeTime, setCloseTime] = useState('21:30');
@@ -94,6 +124,13 @@ export function SettingsScreen() {
     setInvoiceShowDebt(!!s.invoiceShowDebt);
     setOpeningHours(s.openingHours ?? '');
     setSmallOrderNote(s.smallOrderNote ?? '');
+    setInvoiceSubtitle(s.invoiceSubtitle ?? '');
+    setPromoEnabled(!!s.promoEnabled);
+    setPromoType(s.promoType === 'AMOUNT' ? 'AMOUNT' : 'PERCENT');
+    setPromoValue(s.promoValue != null && Number(s.promoValue) > 0 ? String(Number(s.promoValue)) : '');
+    setPromoStartDate(s.promoStartDate ?? '');
+    setPromoEndDate(s.promoEndDate ?? '');
+    setPromoLabel(s.promoLabel ?? '');
     setOpeningCash(String(Number(s.openingCash ?? 750000)));
     setDefaultExpenses(String(Number(s.defaultExpenses ?? 25000)));
     setCloseTime(s.closeTime ?? '21:30');
@@ -141,6 +178,36 @@ export function SettingsScreen() {
     },
     onError: (err) => Toast.show({ type: 'error', text1: extractError(err).message }),
   });
+
+  function handleSavePromo() {
+    const value = Number(promoValue) || 0;
+    const start = promoStartDate.trim();
+    const end = promoEndDate.trim();
+    if (promoEnabled && !(value > 0)) {
+      Toast.show({ type: 'error', text1: 'Nhập giá trị giảm giá' });
+      return;
+    }
+    if (promoType === 'PERCENT' && value > 100) {
+      Toast.show({ type: 'error', text1: 'Giảm theo % tối đa 100%' });
+      return;
+    }
+    if ((start && !YMD_RE.test(start)) || (end && !YMD_RE.test(end))) {
+      Toast.show({ type: 'error', text1: 'Ngày dạng YYYY-MM-DD, vd 2026-11-08' });
+      return;
+    }
+    if (start && end && start > end) {
+      Toast.show({ type: 'error', text1: 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu' });
+      return;
+    }
+    saveMutation.mutate({
+      promoEnabled,
+      promoType,
+      promoValue: value,
+      promoStartDate: start || null,
+      promoEndDate: end || null,
+      promoLabel: promoLabel.trim() || null,
+    });
+  }
 
   async function handleSaveApi() {
     try {
@@ -406,6 +473,8 @@ export function SettingsScreen() {
             showDebt={invoiceShowDebt}
             bookingQrEnabled={bookingQrEnabled}
             openingHours={openingHours}
+            invoiceSubtitle={invoiceSubtitle}
+            promoLabel={promoEnabled && Number(promoValue) > 0 ? promoLabel.trim() || null : null}
           />
 
           <Card>
@@ -434,6 +503,15 @@ export function SettingsScreen() {
               <SwitchRow label="Website" value={invoiceShowWebsite} onChange={setInvoiceShowWebsite} />
               <SwitchRow label="Mã vạch" value={invoiceShowBarcode} onChange={setInvoiceShowBarcode} />
               <SwitchRow label="Hiển thị công nợ" value={invoiceShowDebt} onChange={setInvoiceShowDebt} />
+
+              <Input
+                label="Dòng phụ dưới tên tiệm (vd: Cơ sở 1)"
+                value={invoiceSubtitle}
+                onChangeText={setInvoiceSubtitle}
+                placeholder="Cơ sở 1"
+                maxLength={100}
+                scanCapture={false}
+              />
 
               <Input
                 label="Giờ mở cửa"
@@ -500,6 +578,7 @@ export function SettingsScreen() {
                     invoiceShowDebt,
                     openingHours: openingHours || null,
                     smallOrderNote: smallOrderNote.trim() || null,
+                    invoiceSubtitle: invoiceSubtitle.trim() || null,
                     openingCash: Number(openingCash) || 0,
                     defaultExpenses: Number(defaultExpenses) || 0,
                     ...(/^([01]\d|2[0-3]):[0-5]\d$/.test(closeTime) ? { closeTime } : {}),
@@ -637,6 +716,108 @@ export function SettingsScreen() {
         )}
 
         {tab === 'features' && (
+          <>
+          <Card>
+            <CardHeader style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+              <CardTitle>Giảm giá / Khuyến mãi</CardTitle>
+              {(() => {
+                const st = promoStatus(promoEnabled, Number(promoValue) || 0, promoStartDate, promoEndDate);
+                return <Badge bg={st.bg} fg={st.fg}>{st.label}</Badge>;
+              })()}
+            </CardHeader>
+            <CardContent style={{ gap: spacing.md }}>
+              <SwitchRow
+                label="Bật giảm giá toàn bộ dịch vụ"
+                description="Tiền giảm tự trừ vào tổng bill, hết ngày kết thúc tự hết giảm"
+                value={promoEnabled}
+                onChange={setPromoEnabled}
+              />
+
+              <View>
+                <Text style={styles.fieldLabel}>Loại giảm giá</Text>
+                <View style={styles.segment}>
+                  {(
+                    [
+                      { v: 'PERCENT', label: 'Theo %' },
+                      { v: 'AMOUNT', label: 'Số tiền mỗi đơn' },
+                    ] as { v: PromoType; label: string }[]
+                  ).map((o) => (
+                    <Pressable
+                      key={o.v}
+                      style={[styles.segmentItem, promoType === o.v && styles.segmentItemActive]}
+                      onPress={() => {
+                        if (o.v === promoType) return;
+                        setPromoType(o.v);
+                        setPromoValue('');
+                      }}
+                    >
+                      <Text style={[styles.segmentText, promoType === o.v && styles.segmentTextActive]}>
+                        {o.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <Input
+                label={promoType === 'PERCENT' ? 'Giảm (%)' : 'Giảm mỗi đơn (đ)'}
+                value={
+                  promoType === 'AMOUNT' && promoValue
+                    ? Number(promoValue).toLocaleString('vi-VN')
+                    : promoValue
+                }
+                onChangeText={(t) => {
+                  const d = t.replace(/\D/g, '');
+                  setPromoValue(promoType === 'PERCENT' ? d.slice(0, 3) : d.slice(0, 9));
+                }}
+                keyboardType="number-pad"
+                placeholder={promoType === 'PERCENT' ? '20' : '10.000'}
+                scanCapture={false}
+              />
+
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Từ ngày"
+                    value={promoStartDate}
+                    onChangeText={(t) => setPromoStartDate(formatYmdInput(t))}
+                    keyboardType="number-pad"
+                    placeholder="2026-11-08"
+                    maxLength={10}
+                    scanCapture={false}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Đến ngày"
+                    value={promoEndDate}
+                    onChangeText={(t) => setPromoEndDate(formatYmdInput(t))}
+                    keyboardType="number-pad"
+                    placeholder="2026-11-08"
+                    maxLength={10}
+                    scanCapture={false}
+                  />
+                </View>
+              </View>
+
+              <Input
+                label="Nhãn in trên bill"
+                value={promoLabel}
+                onChangeText={setPromoLabel}
+                placeholder="Khai trương"
+                maxLength={50}
+                scanCapture={false}
+              />
+              <Text style={[styles.switchDesc, { marginTop: -spacing.sm }]}>
+                Tiền giảm tự trừ vào tổng bill, hết ngày kết thúc tự hết giảm. Giảm theo % làm tròn xuống 1.000đ. Để trống ngày = không giới hạn.
+              </Text>
+
+              <Button onPress={handleSavePromo} loading={saveMutation.isPending}>
+                Lưu thay đổi
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle>Tính năng bổ sung</CardTitle></CardHeader>
             <CardContent style={{ gap: spacing.lg }}>
@@ -722,6 +903,7 @@ export function SettingsScreen() {
               </Button>
             </CardContent>
           </Card>
+          </>
         )}
 
         {tab === 'api' && (
@@ -1024,6 +1206,9 @@ interface InvoicePreviewProps {
   showDebt: boolean;
   bookingQrEnabled: boolean;
   openingHours: string;
+  invoiceSubtitle?: string;
+  /** Nhãn đợt giảm giá đang bật (null = không có) */
+  promoLabel?: string | null;
 }
 
 function InvoicePreview({
@@ -1031,6 +1216,7 @@ function InvoicePreview({
   invoiceFontSize, customerNameFontSize,
   showShopName, showPhone, showAddress, showWebsite,
   showBarcode, showQR, showDebt, bookingQrEnabled, openingHours,
+  invoiceSubtitle, promoLabel,
 }: InvoicePreviewProps) {
   const hasBankQr = showQR;
   const hasBookingQr = bookingQrEnabled;
@@ -1063,6 +1249,11 @@ function InvoicePreview({
             {shopName || 'TÊN CỬA HÀNG'}
           </Text>
         )}
+        {invoiceSubtitle?.trim() ? (
+          <Text style={[pvStyles.center, { fontSize: fs(invoiceFontSize + 2), fontWeight: '700' }]}>
+            {invoiceSubtitle.trim()}
+          </Text>
+        ) : null}
         {showAddress && address ? (
           <Text style={[pvStyles.center, { fontSize: fs(20) }]}>{address}</Text>
         ) : null}
@@ -1127,7 +1318,9 @@ function InvoicePreview({
 
         {/* Total */}
         <Row left="TỔNG CỘNG" right="105.000d" />
-        {showDebt && <Row left="Giảm giá" right="-5.000d" />}
+        {(showDebt || promoLabel != null) && (
+          <Row left={promoLabel ? `Giảm giá ${promoLabel}` : 'Giảm giá'} right="-5.000d" />
+        )}
 
         <Divider />
 
@@ -1142,7 +1335,7 @@ function InvoicePreview({
         {showBothQr ? (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
             <View style={pvStyles.qrBoxFramed}>
-              <Icon name="qrcode" size={44} color="#111" />
+              <Icon name="qrcode" size={36} color="#111" />
             </View>
             <View style={pvStyles.qrBoxFramed}>
               <Text style={pvStyles.qrBoxLabel}>Đặt lịch giao nhận</Text>
@@ -1153,7 +1346,7 @@ function InvoicePreview({
           <>
             {hasBankQr && (
               <View style={pvStyles.qrBox}>
-                <Icon name="qrcode" size={60} color="#111" />
+                <Icon name="qrcode" size={47} color="#111" />
               </View>
             )}
             {hasBookingQr && (
@@ -1301,6 +1494,14 @@ const styles = StyleSheet.create({
   tabTextActive: { color: colors.primary },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: spacing.sm },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: spacing.xs },
+  segment: {
+    flexDirection: 'row', gap: 3, padding: 3, alignSelf: 'flex-start',
+    borderRadius: radius.md, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+  },
+  segmentItem: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm },
+  segmentItemActive: { backgroundColor: colors.primary },
+  segmentText: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
+  segmentTextActive: { color: '#fff' },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   stepBtn: {
     width: 48, height: 48, borderRadius: radius.md,

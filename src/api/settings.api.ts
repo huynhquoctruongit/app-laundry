@@ -2,7 +2,7 @@ import { apiClient, unwrap } from './client';
 import type { ShopSettings } from '@/types/api';
 
 export type SettingsPayload = Partial<
-  Omit<ShopSettings, 'id' | 'subscriptionEndsAt' | 'currentPlan' | 'subscriptionDaysRemaining'>
+  Omit<ShopSettings, 'id' | 'subscriptionEndsAt' | 'currentPlan' | 'subscriptionDaysRemaining' | 'promoActiveNow'>
 >;
 
 export const settingsApi = {

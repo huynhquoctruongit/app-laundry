@@ -23,6 +23,8 @@ export interface User {
   name: string;
   phone?: string;
   role: 'ADMIN' | 'STAFF';
+  shopId?: string;
+  shopName?: string;
   permissions?: Record<string, boolean>;
   orderViewTimeLimit?: string;
   isActive: boolean;
@@ -254,6 +256,19 @@ export interface ShopSettings {
   defaultExpenses?: number | string;
   /** Giờ đóng cửa "HH:mm" — nhắc chốt két trước 10 phút */
   closeTime?: string;
+  /** Dòng phụ in dưới tên tiệm trên bill (vd "Cơ sở 1") */
+  invoiceSubtitle?: string | null;
+  /** Giảm giá toàn bộ dịch vụ theo khoảng ngày (vd khai trương) — BE tự trừ khi tạo đơn */
+  promoEnabled?: boolean;
+  promoType?: 'PERCENT' | 'AMOUNT';
+  /** Decimal — có thể về dạng string, dùng Number() */
+  promoValue?: number | string;
+  /** YYYY-MM-DD (giờ VN), gồm cả ngày này */
+  promoStartDate?: string | null;
+  promoEndDate?: string | null;
+  promoLabel?: string | null;
+  /** Read-only: đợt giảm đang áp dụng tại thời điểm GET */
+  promoActiveNow?: boolean;
   subscriptionEndsAt: string;
   currentPlan: string;
   subscriptionDaysRemaining: number;
@@ -297,4 +312,12 @@ export interface DashboardReport {
   deliveredOrders: number;
   ordersByStatus: Record<string, number>;
   todoList: { status: string; label: string; count: number }[];
+}
+
+export interface LinkedShop {
+  shopId: string;
+  shopName: string;
+  shopSlug: string;
+  email: string;
+  isCurrent: boolean;
 }

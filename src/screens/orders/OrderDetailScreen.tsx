@@ -10,6 +10,7 @@ import { OrderStatusBadge } from '@/components/common/OrderStatusBadge';
 import { InvoicePreviewModal } from '@/components/common/InvoicePreviewModal';
 import { orderApi, type ScanHistoryEntry } from '@/api/order.api';
 import { settingsApi } from '@/api/settings.api';
+import { promoDiscountLabel } from '@/lib/promo';
 import { extractError } from '@/api/client';
 import { playCoinSound } from '@/lib/sound';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -247,7 +248,7 @@ export function OrderDetailScreen() {
           {discount > 0 && (
             <>
               <View style={styles.totalRow}>
-                <Text style={{ color: colors.textMuted }}>Giảm giá</Text>
+                <Text style={{ color: colors.textMuted }}>{promoDiscountLabel(settingsQuery.data, order.createdAt)}</Text>
                 <Text style={{ color: colors.textMuted }}>{formatCurrency(discount)}</Text>
               </View>
               <View style={styles.totalRow}>

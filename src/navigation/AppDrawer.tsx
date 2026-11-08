@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { orderApi } from '@/api/order.api';
 import { bookingApi } from '@/api/booking.api';
 import { SubscriptionBanner } from '@/components/common/SubscriptionBanner';
+import { ShopSwitcher } from '@/components/common/ShopSwitcher';
 import { requestUpdateCheck } from '@/components/common/AppUpdater';
 import { formatVersion, updater, updaterAvailable } from '@/lib/appUpdater';
 
@@ -29,6 +30,7 @@ import { ProductsScreen } from '@/screens/products/ProductsScreen';
 import { SuppliersScreen } from '@/screens/suppliers/SuppliersScreen';
 import { InventoryScreen } from '@/screens/inventory/InventoryScreen';
 import { FinanceScreen } from '@/screens/finance/FinanceScreen';
+import { TransfersScreen } from '@/screens/transfers/TransfersScreen';
 import { DebtsScreen } from '@/screens/debts/DebtsScreen';
 import { DebtScreen } from '@/screens/debts/DebtScreen';
 import { ShiftsScreen } from '@/screens/shifts/ShiftsScreen';
@@ -52,6 +54,7 @@ const NAV_ITEMS: { name: string; label: string; component: React.ComponentType<a
   { name: 'Products', label: 'Dịch vụ', component: ProductsScreen, icon: 'tag-multiple' },
   { name: 'Inventory', label: 'Kho hàng', component: InventoryScreen, icon: 'warehouse' },
   { name: 'Finance', label: 'Thu chi', component: FinanceScreen, icon: 'wallet' },
+  { name: 'Transfers', label: 'Chuyển khoản', component: TransfersScreen, icon: 'bank-transfer' },
   { name: 'Debts', label: 'Sổ nợ', component: DebtsScreen, icon: 'book-open-variant' },
   { name: 'Shifts', label: 'Ca làm việc', component: ShiftsScreen, icon: 'clock-outline' },
   { name: 'CashClosing', label: 'Chốt két', component: CashClosingBookScreen, icon: 'cash-register' },
@@ -111,6 +114,9 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             <Text style={styles.userRole}>{user?.role}</Text>
           </View>
         </View>
+
+        {/* ADMIN quản lý nhiều tiệm: đổi tiệm không cần đăng xuất */}
+        <ShopSwitcher />
 
         <DrawerItemList {...props} />
 

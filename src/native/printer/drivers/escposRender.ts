@@ -8,6 +8,7 @@ import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
+import { promoDiscountLabel } from '@/lib/promo';
 
 export interface EscPosBackend {
   printerInit(): Promise<void>;
@@ -104,6 +105,11 @@ export async function renderInvoice(backend: EscPosBackend, order: Order, settin
   if (settings.invoiceShowShopName) {
     await align(backend, ALIGN.CENTER);
     await text(backend, (settings.shopName || BRAND_NAME).toUpperCase(), { bold: true, fontSize: 32 });
+  }
+  // Dòng phụ dưới tên tiệm (vd "Co so 1") — text() tự bỏ dấu
+  if (settings.invoiceSubtitle?.trim()) {
+    await align(backend, ALIGN.CENTER);
+    await text(backend, settings.invoiceSubtitle.trim(), { bold: true, fontSize: 26 });
   }
   if (settings.invoiceShowAddress && settings.address) {
     await align(backend, ALIGN.CENTER);
@@ -221,9 +227,10 @@ export async function renderInvoice(backend: EscPosBackend, order: Order, settin
   // Ship đã hiện trong items → totals chỉ cần: (Tam tinh nếu có discount) + Tong cong
   await align(backend, ALIGN.LEFT);
   const displaySubtotal = subtotal + shippingFee; // tổng trước giảm giá (gồm cả ship)
-  if (settings.invoiceShowDebt && discount > 0) {
+  if (discount > 0) {
     await text(backend, twoCol('Tam tinh', fmtPrice(displaySubtotal)), { fontSize: 22 });
-    await text(backend, twoCol('Giam gia', '- ' + fmtPrice(discount)), { fontSize: 22 });
+    // text() tự bỏ dấu nhãn đợt giảm (vd "Khai trương" → "Khai truong")
+    await text(backend, twoCol(promoDiscountLabel(settings, order.createdAt, 'Giam gia'), '- ' + fmtPrice(discount)), { fontSize: 22 });
     await text(backend, twoCol('TONG CONG', fmtPrice(grandTotal)), { bold: true, fontSize: 26 });
   } else {
     await text(backend, twoCol('TONG CONG', fmtPrice(grandTotal)), { bold: true, fontSize: 26 });

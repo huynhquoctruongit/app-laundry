@@ -6,6 +6,7 @@ import type { Order, ShopSettings } from '@/types/api';
 import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal, formatCurrency, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
+import { promoDiscountLabel } from '@/lib/promo';
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 let prepared = false;
@@ -193,6 +194,15 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
       await SunmiPrinterLibrary.setTextStyle('bold', false);
       await SunmiPrinterLibrary.setFontSize(24);
     }
+    // Dòng phụ dưới tên tiệm (vd "Cơ sở 1")
+    if (settings.invoiceSubtitle?.trim()) {
+      await SunmiPrinterLibrary.setAlignment('center');
+      await SunmiPrinterLibrary.setTextStyle('bold', true);
+      await SunmiPrinterLibrary.setFontSize(26);
+      await SunmiPrinterLibrary.printText(settings.invoiceSubtitle.trim() + '\n');
+      await SunmiPrinterLibrary.setTextStyle('bold', false);
+      await SunmiPrinterLibrary.setFontSize(24);
+    }
 
     // ── 2. Address + phone ──
     if (settings.invoiceShowAddress && settings.address) {
@@ -298,14 +308,14 @@ export async function printInvoice(order: Order, settings: ShopSettings): Promis
     const { subtotal, shippingFee, discount, grandTotal } = calcInvoiceTotals(order, settings);
     await SunmiPrinterLibrary.setAlignment('left');
     await SunmiPrinterLibrary.setFontSize(22);
-    await printVN(twoCol(shippingFee > 0 ? 'Tạm tính' : 'TỔNG CỘNG', printMoney(subtotal)) + '\n');
+    await printVN(twoCol(shippingFee > 0 || discount > 0 ? 'Tạm tính' : 'TỔNG CỘNG', printMoney(subtotal)) + '\n');
     if (shippingFee > 0) {
       await printVN(twoCol('Phí ship', '+ ' + printMoney(shippingFee)) + '\n');
     }
-    if (settings.invoiceShowDebt && discount > 0) {
-      await printVN(twoCol('Giảm giá', '- ' + printMoney(discount)) + '\n');
+    if (discount > 0) {
+      await printVN(twoCol(promoDiscountLabel(settings, order.createdAt), '- ' + printMoney(discount)) + '\n');
     }
-    if (shippingFee > 0 || (settings.invoiceShowDebt && discount > 0)) {
+    if (shippingFee > 0 || discount > 0) {
       await SunmiPrinterLibrary.setTextStyle('bold', true);
       await SunmiPrinterLibrary.setFontSize(26);
       await printVN(twoCol('TỔNG CỘNG', printMoney(grandTotal)) + '\n');

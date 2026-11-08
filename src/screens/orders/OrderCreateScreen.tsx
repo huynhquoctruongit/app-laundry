@@ -29,6 +29,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { colors } from '@/theme/colors';
 import { radius, spacing, touch } from '@/theme/spacing';
 import { calcLineTotal, formatCurrency, formatDateTime, getEffectivePrice } from '@/lib/utils';
+import { calcPromoDiscount } from '@/lib/promo';
 import type { Customer, Product } from '@/types/api';
 
 interface DraftItem {
@@ -273,6 +274,23 @@ export function OrderCreateScreen() {
     () => items.reduce((sum, i) => sum + calcLineTotal(i), 0),
     [items],
   );
+
+  // Đợt giảm giá toàn tiệm (khai trương…) — BE tự trừ khi tạo/sửa đơn, ở đây chỉ hiển thị.
+  // Sửa đơn: BE tính theo ngày tạo đơn; tổng tính trên mọi dòng (gồm cả dòng phí ship).
+  const promoSettings = settingsQuery.data;
+  const promoAt = isEditMode && editQuery.data?.createdAt ? new Date(editQuery.data.createdAt) : new Date();
+  const promoDiscount = calcPromoDiscount(promoSettings, total + deliveryFee, promoAt);
+  const promoText = promoSettings
+    ? [
+        'Giảm giá',
+        promoSettings.promoLabel?.trim(),
+        promoSettings.promoType === 'AMOUNT'
+          ? null
+          : `-${Number(promoSettings.promoValue)}%`,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : 'Giảm giá';
 
   function adjustQuantity(i: number, delta: number) {
     setItems((arr) =>
@@ -864,10 +882,29 @@ export function OrderCreateScreen() {
           <Text style={styles.shipValue}>+ {formatCurrency(deliveryFee)}</Text>
         </View>
       )}
-      <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Tổng cộng</Text>
-        <Text style={styles.totalValue}>{formatCurrency(total + deliveryFee)}</Text>
-      </View>
+      {promoDiscount > 0 ? (
+        <>
+          <View style={styles.totalRow}>
+            <Text style={styles.shipLabel}>Tổng cộng</Text>
+            <Text style={styles.shipValue}>{formatCurrency(total + deliveryFee)}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={[styles.shipLabel, { color: colors.success, flexShrink: 1 }]} numberOfLines={1}>
+              {promoText}
+            </Text>
+            <Text style={[styles.shipValue, { color: colors.success }]}>-{formatCurrency(promoDiscount)}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Khách cần trả</Text>
+            <Text style={styles.totalValue}>{formatCurrency(total + deliveryFee - promoDiscount)}</Text>
+          </View>
+        </>
+      ) : (
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Tổng cộng</Text>
+          <Text style={styles.totalValue}>{formatCurrency(total + deliveryFee)}</Text>
+        </View>
+      )}
       <View style={{ flexDirection: isPhone ? 'column' : 'row', gap: spacing.md }}>
         <Button
           variant="outline"

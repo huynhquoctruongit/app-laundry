@@ -15,6 +15,7 @@ import { calcInvoiceTotals } from '@/lib/invoice-totals';
 import { calcLineTotal, orderCodeSuffix, smallOrderNoteFor } from '@/lib/utils';
 import { BRAND_NAME } from '@/helpers/constants/brand';
 import { buildVietQrPayload } from '@/lib/vietqr';
+import { promoDiscountLabel } from '@/lib/promo';
 
 // Giấy 58mm → 384px. Giấy 80mm → 576px. Scale để font đủ lớn khi in.
 export const PRINT_WIDTH_PX = 384;
@@ -83,6 +84,9 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
       {settings.invoiceShowShopName && (
         <Text style={s.shopName}>{settings.shopName || BRAND_NAME}</Text>
       )}
+      {settings.invoiceSubtitle?.trim() ? (
+        <Text style={s.shopSubtitle}>{settings.invoiceSubtitle.trim()}</Text>
+      ) : null}
       {settings.invoiceShowPhone && settings.phone ? (
         <Text style={s.center}>{settings.phone}</Text>
       ) : null}
@@ -142,21 +146,21 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
       <Divider />
 
       {/* Totals */}
-      {shippingFee > 0 ? (
-        <>
-          <View style={s.totalRow}>
-            <Text style={s.totalLabel}>Tạm tính</Text>
-            <Text style={s.totalValue}>{money(subtotal)}</Text>
-          </View>
-          <View style={s.totalRow}>
-            <Text style={s.totalLabel}>Phí ship</Text>
-            <Text style={s.totalValue}>+ {money(shippingFee)}</Text>
-          </View>
-        </>
-      ) : null}
-      {settings.invoiceShowDebt && discount > 0 ? (
+      {shippingFee > 0 || discount > 0 ? (
         <View style={s.totalRow}>
-          <Text style={s.totalLabel}>Giảm giá</Text>
+          <Text style={s.totalLabel}>Tạm tính</Text>
+          <Text style={s.totalValue}>{money(subtotal)}</Text>
+        </View>
+      ) : null}
+      {shippingFee > 0 ? (
+        <View style={s.totalRow}>
+          <Text style={s.totalLabel}>Phí ship</Text>
+          <Text style={s.totalValue}>+ {money(shippingFee)}</Text>
+        </View>
+      ) : null}
+      {discount > 0 ? (
+        <View style={s.totalRow}>
+          <Text style={s.totalLabel}>{promoDiscountLabel(settings, order.createdAt)}</Text>
           <Text style={s.totalValue}>- {money(discount)}</Text>
         </View>
       ) : null}
@@ -191,7 +195,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
       {showBothQr ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 6 }}>
           <View style={s.qrBox}>
-            <QRCode value={vietQrValue(settings, grandTotal, order.code)} size={150} quietZone={4} />
+            <QRCode value={vietQrValue(settings, grandTotal, order.code)} size={125} quietZone={4} />
           </View>
           <View style={s.qrBox}>
             <Text style={s.qrBoxLabel}>Đặt lịch giao nhận</Text>
@@ -202,7 +206,7 @@ export function InvoicePrintView({ order, settings, onQrLoadEnd }: Props) {
         <>
           {hasBankQr && (
             <View style={{ alignItems: 'center', marginVertical: 6 }}>
-              <QRCode value={vietQrValue(settings, grandTotal, order.code)} size={230} quietZone={6} />
+              <QRCode value={vietQrValue(settings, grandTotal, order.code)} size={180} quietZone={6} />
             </View>
           )}
           {hasBookingQr && (
@@ -292,6 +296,7 @@ function makeStyles(FONT: number) {
       textAlign: 'center',
     },
     shopName: { textAlign: 'center', fontSize: FONT + 10, fontWeight: '800', color: '#000', width: '100%' },
+    shopSubtitle: { textAlign: 'center', fontSize: FONT + 2, fontWeight: '700', color: '#000', width: '100%' },
     title: { textAlign: 'center', fontSize: FONT + 6, fontWeight: '800', color: '#000', marginVertical: 1 },
     customerName: { textAlign: 'center', fontWeight: '800', color: '#000', marginBottom: 1 },
     meta: { fontSize: FONT - 1, color: '#333' },

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth.api';
 import type { User } from '@/types/api';
 
@@ -9,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  switchShop: (shopId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     (async () => {
@@ -58,8 +61,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user);
   }
 
+  // Chủ quản lý nhiều tiệm: lấy token tiệm khác. Bật loading để RootNavigator
+  // unmount NavigationContainer → điều hướng reset về Tổng quan, đồng thời xoá
+  // cache react-query để không lẫn dữ liệu tiệm cũ.
+  async function switchShop(shopId: string) {
+    const res = await authApi.switchShop(shopId);
+    setLoading(true);
+    try {
+      await AsyncStorage.setItem(TOKEN_KEY, res.token);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(res.user));
+      queryClient.clear();
+      setToken(res.token);
+      setUser(res.user);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function logout() {
+    // Máy này thôi nhận thông báo của tài khoản vừa đăng xuất (lỗi mạng thì bỏ qua)
+    await authApi.clearFcmToken().catch(() => {});
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    queryClient.clear();
     setToken(null);
     setUser(null);
   }
@@ -75,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, switchShop, refresh }}>
       {children}
     </AuthContext.Provider>
   );

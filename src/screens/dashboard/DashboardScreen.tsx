@@ -58,7 +58,7 @@ export function DashboardScreen() {
   const stats = [
     { label: 'Doanh thu', value: report?.revenue ?? 0, isCurrency: true, icon: 'wallet', color: colors.primary, bg: colors.primaryLight },
     { label: 'Đã thu', value: report?.profit ?? 0, isCurrency: true, icon: 'cash-check', color: colors.success, bg: colors.successLight },
-    { label: 'Chuyển khoản', value: transfers?.total ?? 0, isCurrency: true, icon: 'bank', color: '#0d9488', bg: '#ccfbf1' },
+    { label: 'Chuyển khoản', value: transfers?.total ?? 0, isCurrency: true, icon: 'bank', color: '#0d9488', bg: '#ccfbf1', drawer: 'Transfers' },
     { label: 'Đơn mới', value: report?.newOrders ?? 0, isCurrency: false, icon: 'clipboard-list', color: colors.warning, bg: colors.warningLight },
     { label: 'Đã giao', value: report?.deliveredOrders ?? 0, isCurrency: false, icon: 'package-variant', color: '#8b5cf6', bg: '#ede9fe' },
   ];
@@ -94,43 +94,47 @@ export function DashboardScreen() {
       {/* Stats */}
       <View style={styles.statsGrid}>
         {stats.map((s) => (
-          <Card
+          <Pressable
             key={s.label}
+            disabled={!s.drawer}
+            onPress={s.drawer ? () => navigation.navigate(s.drawer!) : undefined}
             style={{
               flex: 1,
               minWidth: isPhone ? '46%' : 200,
             }}
           >
-            <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg }}>
-              <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: s.bg, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={s.icon} size={24} color={s.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.statLabel}>{s.label}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text
-                    style={[styles.statValue, { flexShrink: 1 }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.5}
-                  >
-                    {dashboardQuery.isLoading
-                      ? '—'
-                      : s.isCurrency && !showFinancial
-                        ? '••••'
-                        : s.isCurrency
-                          ? formatCurrency(s.value)
-                          : s.value}
-                  </Text>
-                  {s.isCurrency && (
-                    <Pressable onPress={() => setShowFinancial((v) => !v)} hitSlop={8}>
-                      <Icon name={showFinancial ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
-                    </Pressable>
-                  )}
+            <Card style={{ flex: 1 }}>
+              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg }}>
+                <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: s.bg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={s.icon} size={24} color={s.color} />
                 </View>
-              </View>
-            </CardContent>
-          </Card>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text
+                      style={[styles.statValue, { flexShrink: 1 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.5}
+                    >
+                      {dashboardQuery.isLoading
+                        ? '—'
+                        : s.isCurrency && !showFinancial
+                          ? '••••'
+                          : s.isCurrency
+                            ? formatCurrency(s.value)
+                            : s.value}
+                    </Text>
+                    {s.isCurrency && (
+                      <Pressable onPress={() => setShowFinancial((v) => !v)} hitSlop={8}>
+                        <Icon name={showFinancial ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              </CardContent>
+            </Card>
+          </Pressable>
         ))}
       </View>
 
@@ -199,7 +203,9 @@ export function DashboardScreen() {
       <Card>
         <CardHeader style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <CardTitle>Chuyển khoản gần đây</CardTitle>
-          <Icon name="bank" size={20} color="#0d9488" />
+          <Button variant="ghost" size="sm" onPress={() => navigation.navigate('Transfers')}>
+            Xem lịch sử
+          </Button>
         </CardHeader>
         <CardContent style={{ gap: spacing.sm }}>
           {!transfers || transfers.items.length === 0 ? (

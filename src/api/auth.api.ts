@@ -1,5 +1,5 @@
 import { apiClient, unwrap } from './client';
-import type { User } from '@/types/api';
+import type { LinkedShop, User } from '@/types/api';
 
 export interface LoginPayload {
   email: string;
@@ -24,6 +24,14 @@ export const authApi = {
   me: () => unwrap<User>(apiClient.get('/auth/me')),
   register: (payload: RegisterPayload) =>
     unwrap<LoginResponse>(apiClient.post('/auth/register', payload)),
+  linkedShops: () => unwrap<LinkedShop[]>(apiClient.get('/auth/linked-shops')),
+  linkShop: (payload: LoginPayload) =>
+    unwrap<LinkedShop[]>(apiClient.post('/auth/linked-shops', payload)),
+  unlinkShop: (shopId: string) =>
+    unwrap<LinkedShop[]>(apiClient.delete(`/auth/linked-shops/${shopId}`)),
+  switchShop: (shopId: string) =>
+    unwrap<LoginResponse>(apiClient.post('/auth/switch-shop', { shopId })),
+  clearFcmToken: () => apiClient.delete('/auth/fcm-token', { timeout: 5000 }),
   updateFcmToken: (token: string) =>
     apiClient.patch('/auth/fcm-token', { token }),
 };
