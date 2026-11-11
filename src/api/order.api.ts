@@ -45,7 +45,32 @@ export interface ScanHistoryEntry {
   meta?: Record<string, unknown> | string | null;
 }
 
+export interface DeletedOrderItem {
+  id: string;
+  orderId: string;
+  code: string;
+  status: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  totalAmount: number;
+  orderCreatedAt: string;
+  deletedAt: string;
+  deletedByName: string | null;
+  items: { name: string; quantity: number }[];
+}
+
+export interface DeletedOrders {
+  from: string;
+  to: string;
+  count: number;
+  totalAmount: number;
+  items: DeletedOrderItem[];
+}
+
 export const orderApi = {
+  /** Nhật ký đơn đã xoá theo ngày xoá (giờ VN, YYYY-MM-DD) — chỉ ADMIN */
+  deleted: (query: { from?: string; to?: string } = {}) =>
+    unwrap<DeletedOrders>(apiClient.get('/orders/deleted', { params: query })),
   statusCounts: (query: { dateFrom?: string; dateTo?: string; productId?: string } = {}) =>
     unwrap<Record<string, number>>(apiClient.get('/orders/status-counts', { params: query })),
   /** Số đơn theo từng loại dịch vụ trong ngày, nhiều → ít (lọc dịch vụ) */

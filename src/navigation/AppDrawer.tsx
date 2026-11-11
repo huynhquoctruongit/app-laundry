@@ -37,6 +37,7 @@ import { ShiftsScreen } from '@/screens/shifts/ShiftsScreen';
 import { CashClosingBookScreen } from '@/screens/cash-closing/CashClosingBookScreen';
 import { ReportsScreen } from '@/screens/reports/ReportsScreen';
 import { StaffScreen } from '@/screens/staff/StaffScreen';
+import { DeletedOrdersScreen } from '@/screens/orders/DeletedOrdersScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 
 const Drawer = createDrawerNavigator();
@@ -60,6 +61,7 @@ const NAV_ITEMS: { name: string; label: string; component: React.ComponentType<a
   { name: 'CashClosing', label: 'Chốt két', component: CashClosingBookScreen, icon: 'cash-register' },
   { name: 'Reports', label: 'Báo cáo', component: ReportsScreen, icon: 'chart-bar' },
   { name: 'Staff', label: 'Nhân viên', component: StaffScreen, icon: 'account-cog', adminOnly: true },
+  { name: 'DeletedOrders', label: 'Đơn đã xoá', component: DeletedOrdersScreen, icon: 'delete-clock-outline', adminOnly: true },
   { name: 'Settings', label: 'Cài đặt', component: SettingsScreen, icon: 'cog', adminOnly: true },
 ];
 
