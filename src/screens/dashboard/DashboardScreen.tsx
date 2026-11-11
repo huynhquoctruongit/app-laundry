@@ -103,7 +103,7 @@ export function DashboardScreen() {
               minWidth: isPhone ? '46%' : 200,
             }}
           >
-            <Card style={{ flex: 1 }}>
+            <Card>
               <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg }}>
                 <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: s.bg, alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name={s.icon} size={24} color={s.color} />
