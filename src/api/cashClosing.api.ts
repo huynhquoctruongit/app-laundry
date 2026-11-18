@@ -15,6 +15,10 @@ export interface CashClosing {
   note: string | null;
   createdAt: string;
   closedBy: { id: string; name: string };
+  /** Thu SAU giờ chốt tới hết ngày (khách lấy đồ muộn) — tính trực tiếp, không lưu sổ */
+  afterClose?: { orderCount: number; collected: number; transfers: number; cash: number };
+  /** Tiền chủ tiệm lấy = két đếm + tiền mặt thu sau chốt − tiền để lại két đầu ngày */
+  ownerTake?: number;
 }
 
 export interface CashClosingPreview {
@@ -44,6 +48,8 @@ export interface CashClosingMonth {
     expenses: number;
     difference: number;
     mismatchDays: number;
+    afterCloseCash?: number;
+    ownerTake?: number;
   };
 }
 

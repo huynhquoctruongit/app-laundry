@@ -332,6 +332,26 @@ function ClosedSummary({ c }: { c: CashClosing }) {
         <Text style={[styles.resultText, { color: tone.fg, fontSize: 18 }]}>{tone.text}</Text>
       </View>
       {c.note ? <Text style={styles.hint}>Lý do: {c.note}</Text> : null}
+      <OwnerTake c={c} />
+    </View>
+  );
+}
+
+/** Thu thêm sau giờ chốt + tiền chủ tiệm lấy (chủ tiệm hôm sau mới tới lấy tiền) */
+function OwnerTake({ c }: { c: CashClosing }) {
+  if (c.ownerTake == null) return null;
+  const after = c.afterClose?.cash ?? 0;
+  return (
+    <View style={styles.ownerBox}>
+      {after > 0 ? (
+        <Line label={`+ Thu thêm sau chốt (${c.afterClose?.orderCount ?? 0} đơn)`} value={formatCurrency(after)} />
+      ) : null}
+      <Line label="− Để lại két đầu ngày" value={formatCurrency(Number(c.openingCash))} muted />
+      <Line
+        label={c.ownerTake >= 0 ? 'Tiền chủ tiệm lấy' : 'Cần bù vào két'}
+        value={formatCurrency(Math.abs(c.ownerTake))}
+        strong
+      />
     </View>
   );
 }
@@ -395,6 +415,9 @@ export function ClosingBook({ showSummary = false }: { showSummary?: boolean }) 
                     <Text style={styles.hint}>
                       Két {formatCurrency(Number(c.countedCash))} / phải có {formatCurrency(Number(c.expectedCash))}
                     </Text>
+                    {(c.afterClose?.cash ?? 0) > 0 ? (
+                      <Text style={styles.afterText}>+ {formatCurrency(c.afterClose!.cash)} thu sau chốt</Text>
+                    ) : null}
                   </View>
                   <View style={[styles.badge, { backgroundColor: tone.bg }]}>
                     <Text style={{ color: tone.fg, fontWeight: '700', fontSize: 12 }}>{tone.text}</Text>
@@ -406,8 +429,10 @@ export function ClosingBook({ showSummary = false }: { showSummary?: boolean }) 
                     <Line label="+ Đã thu" value={formatCurrency(Number(c.collected))} />
                     <Line label="− Chuyển khoản" value={formatCurrency(Number(c.transfers))} muted />
                     <Line label="− Chi phí" value={formatCurrency(Number(c.expenses))} muted />
+                    <Line label="Két đếm được" value={formatCurrency(Number(c.countedCash))} />
                     <Text style={styles.hint}>Chốt lúc {formatDateTime(c.createdAt)}</Text>
                     {c.note ? <Text style={styles.hint}>Lý do: {c.note}</Text> : null}
+                    <OwnerTake c={c} />
                     {isAdmin && (
                       <Pressable
                         style={styles.deleteBtn}
@@ -452,6 +477,8 @@ function MonthSummary({ totals }: { totals: import('@/api/cashClosing.api').Cash
           { label: 'Tổng đã thu', value: totals.collected },
           { label: 'Tổng chuyển khoản', value: totals.transfers },
           { label: 'Tổng chi phí', value: totals.expenses },
+          ...(totals.afterCloseCash != null ? [{ label: 'Thu thêm sau chốt', value: totals.afterCloseCash }] : []),
+          ...(totals.ownerTake != null ? [{ label: 'Tổng tiền chủ tiệm lấy', value: totals.ownerTake }] : []),
         ].map((s) => (
           <View key={s.label} style={styles.summaryCell}>
             <Text style={styles.hint}>{s.label}</Text>
@@ -571,5 +598,10 @@ const styles = StyleSheet.create({
   bookRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
   bookDate: { fontSize: 15, fontWeight: '700', color: colors.text },
   badge: { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
+  ownerBox: {
+    gap: 2, marginTop: spacing.sm, padding: spacing.sm,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md,
+  },
+  afterText: { fontSize: 13, fontWeight: '700', color: '#1d4ed8' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm, alignSelf: 'flex-start' },
 });
